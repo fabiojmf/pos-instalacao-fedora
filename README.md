@@ -9,7 +9,11 @@ Este projeto contém scripts para automatizar a configuração do Fedora após u
   - Remoção de jogos e aplicativos específicos do GNOME.
   - Instalação de Zsh, Oh My Zsh, Kitty, Neovim, LazyVim e GCC.
 - **`finalizacao.sh`**: Script secundário que remove o Bash e o GNOME Terminal após a configuração inicial.
-- **`README.md`**: Este arquivo, que fornece instruções e explicações sobre o projeto.
+
+## Ferramentas Específicas
+
+- **KeePassXC**: Escolhido por ser um gerenciador de senhas seguro, de código aberto e fácil de usar, garantindo proteção e acesso prático às credenciais.
+- **Mise (mise-en-place)**: Selecionado para gerenciar versões de linguagens e ferramentas de desenvolvimento, simplificando a criação de ambientes consistentes.
 
 ## Instruções de Uso
 
@@ -43,7 +47,7 @@ Após o término do primeiro script, abra o terminal Kitty e execute:
 
 -   Adicionar ou remover pacotes:
     
-    -   Edite os comandos dnf install e dnf remove nos scripts para incluir ou excluir pacotes conforme suas necessidades.
+    -   Edite os comandos ```dnf install``` e ```dnf remove``` nos scripts para incluir ou excluir pacotes conforme suas necessidades.
         
 -   Configurações adicionais:
     

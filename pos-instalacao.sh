@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e # Sair imediatamente se um comando falhar
 
 # Atualizar o sistema antes de começar
 echo "Atualizando o sistema..."
@@ -13,10 +14,19 @@ echo "Instalando Zsh..."
 sudo dnf install -y zsh
 
 echo "Instalando Oh My Zsh..."
+# Executa sem pedir para mudar o shell aqui, pois faremos isso explicitamente depois
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
-echo "Configurando Zsh como shell padrão..."
-chsh -s $(which zsh)
+echo "Configurando Zsh como shell padrão para o usuário atual..."
+# Verifica se o Zsh foi instalado antes de tentar mudar
+if command -v zsh &> /dev/null; then
+    sudo chsh -s $(which zsh) $USER
+    echo "Shell padrão alterado para Zsh para o usuário $USER."
+    echo "IMPORTANTE: A mudança terá efeito completo após logout/login ou reinicialização."
+else
+    echo "Erro: Zsh não encontrado. Não foi possível definir como shell padrão."
+    exit 1
+fi
 
 # 3. Instalar Kitty
 echo "Instalando Kitty..."
@@ -27,8 +37,14 @@ echo "Instalando Neovim..."
 sudo dnf install -y neovim
 
 echo "Instalando LazyVim..."
-git clone https://github.com/LazyVim/starter ~/.config/nvim
-rm -rf ~/.config/nvim/.git
+if [ ! -d ~/.config/nvim ]; then
+    git clone https://github.com/LazyVim/starter ~/.config/nvim
+    rm -rf ~/.config/nvim/.git
+    echo "LazyVim starter clonado para ~/.config/nvim."
+    echo "Abra o nvim pela primeira vez para finalizar a instalação dos plugins."
+else
+    echo "Diretório ~/.config/nvim já existe. Pulando clone do LazyVim."
+fi
 
 # 5. Garantir que o GCC esteja instalado
 echo "Instalando GCC..."
@@ -43,4 +59,14 @@ echo "Instalando KeePassXC e mise-en-place..."
 sudo dnf install -y keepassxc mise-en-place
 
 # Mensagem de conclusão
-echo "Configuração inicial concluída! Agora, abra o Kitty e execute o segundo script (finalizacao.sh) para remover o Bash e o GNOME Terminal."
+echo ""
+echo "-------------------------------------------------------"
+echo "Configuração inicial concluída!"
+echo "-------------------------------------------------------"
+echo "Próximos Passos:"
+echo "1. FAÇA LOGOUT E LOGIN NOVAMENTE (ou reinicie o sistema) para que o Zsh seja seu shell ativo."
+echo "2. Abra o terminal Kitty (que foi instalado)."
+echo "3. No Kitty, execute o segundo script: ./finalizacao.sh"
+echo "   (Este script removerá o GNOME Terminal)."
+echo "4. Após executar finalizacao.sh, abra o Neovim (nvim) pela primeira vez para que o LazyVim configure os plugins."
+echo "-------------------------------------------------------"

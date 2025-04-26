@@ -1,12 +1,12 @@
-#!/bin/sh
+#!/usr/bin/env zsh
+set -e # Sair imediatamente se um comando falhar
 
-# 1. Remover Bash
-echo "Removendo Bash..."
-sudo dnf remove -y bash
+# Este script deve ser executado DEPOIS do pos-instalacao.sh
+# e APÓS fazer logout/login, DENTRO do terminal Kitty.
 
-# 2. Remover GNOME Terminal
 echo "Removendo GNOME Terminal..."
 sudo dnf remove -y gnome-terminal
 
 # Mensagem de conclusão
-echo "Configuração final concluída! Seu Fedora está pronto."
+echo "Configuração final concluída! GNOME Terminal foi removido."
+echo "Seu Fedora está pronto com Zsh, Kitty e suas outras ferramentas."

@@ -94,7 +94,7 @@ remove_gnome_apps() {
     sudo dnf remove -y gnome-contacts gnome-weather gnome-maps gnome-boxes simple-scan \
                        totem rhythmbox gnome-tour gnome-characters gnome-connections \
                        evince loupe gnome-text-editor gnome-logs gnome-abrt \
-                       gnome-system-monitor
+                       gnome-system-monitor gnome-clocks gnome-calendar gnome-camera || log_warn "Alguns aplicativos GNOME não foram encontrados ou já removidos."
     log_info "Removendo LibreOffice..."
     sudo dnf remove -y libreoffice* || log_warn "LibreOffice não encontrado ou já removido."
 }
@@ -122,38 +122,41 @@ install_maven() {
 # 9. Instalar Nerd Font (CodeNewRoman)
 install_nerd_fonts() {
     local font_name="CodeNewRoman"
-    local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/CodeNewRoman.zip"
+    # Verifique a URL mais recente ou a desejada no site do Nerd Fonts
+    local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/CodeNewRoman.zip" 
     local user_fonts_dir="$HOME/.local/share/fonts"
-    local tmp_dir=$(mktemp -d)
+    local tmp_dir
+    tmp_dir=$(mktemp -d) # Cria diretório temporário seguro
 
     log_info "Instalando Nerd Font: ${font_name}..."
 
-    if fc-list | grep -qi "${font_name}"; then
+    # Verifica se a fonte já está instalada para evitar retrabalho
+    if fc-list | grep -qi "${font_name// /.*}"; then # Ajusta para nomes com espaços
         log_info "Fonte ${font_name} Nerd Font parece já estar instalada. Pulando."
-        rm -rf "$tmp_dir"
+        rm -rf "$tmp_dir" # Limpa o diretório temporário
         return 0
     fi
 
     mkdir -p "$user_fonts_dir"
 
-    log_info "Baixando ${font_name}.zip..."
-    if curl -L "$font_zip_url" -o "$tmp_dir/${font_name}.zip"; then
+    log_info "Baixando ${font_name}.zip de ${font_zip_url}..."
+    if curl -LfsS "$font_zip_url" -o "$tmp_dir/${font_name}.zip"; then # -sS para silenciar progresso mas mostrar erros, -f para falhar silenciosamente em erros HTTP
         log_info "Descompactando fontes em $tmp_dir..."
-        unzip -q "$tmp_dir/${font_name}.zip" -d "$tmp_dir/extracted_fonts"
-        
-        # Move apenas arquivos de fonte comuns. Adapte se houver outros formatos.
-        log_info "Movendo arquivos de fonte para $user_fonts_dir..."
-        find "$tmp_dir/extracted_fonts" \( -name "*.ttf" -o -name "*.otf" -o -name "*.woff" -o -name "*.woff2" \) -exec mv {} "$user_fonts_dir/" \;
-
-        log_info "Atualizando cache de fontes..."
-        fc-cache -fv
-        log_info "${font_name} Nerd Font instalada."
+        # Unzip silencioso, sobrescreve sem perguntar, para o diretório de extração
+        if unzip -qjo "$tmp_dir/${font_name}.zip" "*.ttf" "*.otf" -d "$user_fonts_dir"; then # Extrai apenas .ttf e .otf diretamente para o destino
+            log_info "Fontes extraídas para $user_fonts_dir."
+            log_info "Atualizando cache de fontes..."
+            fc-cache -fv
+            log_info "${font_name} Nerd Font instalada com sucesso."
+        else
+            log_error "Falha ao descompactar ${font_name}.zip. Pode estar corrompido ou não conter arquivos .ttf/.otf esperados."
+        fi
     else
-        log_error "Falha ao baixar ${font_name}.zip. Verifique a URL ou sua conexão."
+        log_error "Falha ao baixar ${font_name}.zip. Verifique a URL (${font_zip_url}) ou sua conexão."
     fi
     
-    log_info "Limpando arquivos temporários..."
-    rm -rf "$tmp_dir"
+    log_info "Limpando arquivos temporários de $tmp_dir..."
+    rm -rf "$tmp_dir" # Sempre remove o diretório temporário
 }
 
 
@@ -177,7 +180,7 @@ main() {
     echo "Próximos Passos:"
     echo "1. FAÇA LOGOUT E LOGIN NOVAMENTE (ou reinicie o sistema) para que o Zsh seja seu shell ativo e as fontes sejam reconhecidas."
     echo "   Isso também garantirá que o SDKMAN! seja carregado no seu ambiente Zsh."
-    echo "2. Abra o terminal Kitty (que foi instalado) e configure-o para usar a fonte '${font_name} Nerd Font'."
+    echo "2. Abra o terminal Kitty (que foi instalado) e configure-o para usar a fonte '${font_name:-CodeNewRoman} Nerd Font'."
     echo "3. No Kitty, execute o segundo script: ./finalizacao.sh"
     echo "   (Este script removerá o GNOME Terminal)."
     echo "4. Após executar finalizacao.sh, abra o Neovim (nvim) pela primeira vez para que o LazyVim configure os plugins."

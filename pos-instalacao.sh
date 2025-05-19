@@ -16,8 +16,8 @@ log_error() {
 
 # 0. Pré-requisitos e atualização do sistema
 install_prerequisites_and_update() {
-    log_info "Instalando dependências básicas (curl, git, util-linux-user)..."
-    sudo dnf install -y curl git util-linux-user # util-linux-user para chsh
+    log_info "Instalando dependências básicas (curl, git, util-linux-user, unzip)..."
+    sudo dnf install -y curl git util-linux-user unzip # util-linux-user para chsh, unzip para fontes
 
     log_info "Atualizando o sistema..."
     sudo dnf update -y
@@ -40,8 +40,8 @@ install_zsh_ohmyzsh() {
         log_info "Oh My Zsh já está instalado. Pulando instalação."
     else
         log_info "Instalando Oh My Zsh..."
-        export ZSH_DISABLE_COMPFIX="true" # Evita alguns prompts se já houver arquivos zsh
-        export RUNZSH=no CHSH=no # Impede Oh My Zsh de tentar mudar o shell ou iniciar o zsh
+        export ZSH_DISABLE_COMPFIX="true"
+        export RUNZSH=no CHSH=no
         sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
     fi
 
@@ -56,7 +56,6 @@ install_zsh_ohmyzsh() {
         fi
     else
         log_error "Zsh não encontrado. Não foi possível definir como shell padrão."
-        # set -e cuidará da saída
     fi
 }
 
@@ -69,7 +68,7 @@ install_kitty() {
 # 4. Instalar Neovim e LazyVim
 install_neovim_lazyvim() {
     log_info "Instalando Neovim..."
-    sudo dnf install -y neovim python3-neovim # python3-neovim é útil para plugins
+    sudo dnf install -y neovim python3-neovim
 
     log_info "Instalando LazyVim..."
     if [ ! -d "$HOME/.config/nvim" ]; then
@@ -80,7 +79,6 @@ install_neovim_lazyvim() {
         log_info "Abra o nvim pela primeira vez para finalizar a instalação dos plugins."
     else
         log_info "Diretório $HOME/.config/nvim já existe. Pulando clone do LazyVim."
-        log_info "Se desejar uma instalação limpa do LazyVim, remova o diretório $HOME/.config/nvim e $HOME/.local/share/nvim manualmente e rode o script novamente."
     fi
 }
 
@@ -96,7 +94,7 @@ remove_gnome_apps() {
     sudo dnf remove -y gnome-contacts gnome-weather gnome-maps gnome-boxes simple-scan \
                        totem rhythmbox gnome-tour gnome-characters gnome-connections \
                        evince loupe gnome-text-editor gnome-logs gnome-abrt \
-                       gnome-system-monitor # Considere manter este último ou instalar um substituto
+                       gnome-system-monitor
     log_info "Removendo LibreOffice..."
     sudo dnf remove -y libreoffice* || log_warn "LibreOffice não encontrado ou já removido."
 }
@@ -108,13 +106,9 @@ install_sdkman() {
         log_info "SDKMAN! já está instalado em $HOME/.sdkman. Pulando instalação."
     else
         log_info "Instalando SDKMAN!..."
-        # SDKMAN! deve ser instalado como o usuário atual, não com sudo.
-        # O script do SDKMAN! lida com a adição ao .bashrc/.zshrc.
         curl -s "https://get.sdkman.io" | bash
         log_info "SDKMAN! instalado."
-        log_info "Para usar o SDKMAN! na sessão atual do script (se necessário para passos subsequentes), você precisaria executar:"
-        log_info "source \"\$HOME/.sdkman/bin/sdkman-init.sh\""
-        log_info "Em novas sessões de terminal (após o Zsh ser definido como padrão e o .zshrc ser carregado), o SDKMAN! estará disponível."
+        log_info "Para usar o SDKMAN! na sessão atual do script, execute: source \"\$HOME/.sdkman/bin/sdkman-init.sh\""
     fi
 }
 
@@ -123,32 +117,67 @@ install_maven() {
     log_info "Instalando Maven via dnf..."
     sudo dnf install -y maven
     log_info "Maven instalado a partir dos repositórios do Fedora."
-    log_info "Se preferir, após configurar o SDKMAN! e reiniciar o shell, você pode instalar e gerenciar versões do Maven com: sdk install maven"
 }
+
+# 9. Instalar Nerd Font (CodeNewRoman)
+install_nerd_fonts() {
+    local font_name="CodeNewRoman"
+    local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/CodeNewRoman.zip"
+    local user_fonts_dir="$HOME/.local/share/fonts"
+    local tmp_dir=$(mktemp -d)
+
+    log_info "Instalando Nerd Font: ${font_name}..."
+
+    if fc-list | grep -qi "${font_name}"; then
+        log_info "Fonte ${font_name} Nerd Font parece já estar instalada. Pulando."
+        rm -rf "$tmp_dir"
+        return 0
+    fi
+
+    mkdir -p "$user_fonts_dir"
+
+    log_info "Baixando ${font_name}.zip..."
+    if curl -L "$font_zip_url" -o "$tmp_dir/${font_name}.zip"; then
+        log_info "Descompactando fontes em $tmp_dir..."
+        unzip -q "$tmp_dir/${font_name}.zip" -d "$tmp_dir/extracted_fonts"
+        
+        # Move apenas arquivos de fonte comuns. Adapte se houver outros formatos.
+        log_info "Movendo arquivos de fonte para $user_fonts_dir..."
+        find "$tmp_dir/extracted_fonts" \( -name "*.ttf" -o -name "*.otf" -o -name "*.woff" -o -name "*.woff2" \) -exec mv {} "$user_fonts_dir/" \;
+
+        log_info "Atualizando cache de fontes..."
+        fc-cache -fv
+        log_info "${font_name} Nerd Font instalada."
+    else
+        log_error "Falha ao baixar ${font_name}.zip. Verifique a URL ou sua conexão."
+    fi
+    
+    log_info "Limpando arquivos temporários..."
+    rm -rf "$tmp_dir"
+}
+
 
 # --- Execução Principal ---
 main() {
     install_prerequisites_and_update
     # remove_games
-    install_zsh_ohmyzsh # Instala Zsh e OhMyZsh, modifica .zshrc
+    install_zsh_ohmyzsh
     install_kitty
+    install_nerd_fonts
     install_neovim_lazyvim
     install_dev_tools
     remove_gnome_apps
-    
-    # Assegure que $HOME se refere ao diretório do usuário que executa o script, não root.
-    # Este script é projetado para ser executado como um usuário normal, usando `sudo` apenas quando necessário.
-    install_sdkman    # Instala SDKMAN!, modifica .zshrc/bashrc
-    install_maven     # Instala Maven via dnf
+    install_sdkman
+    install_maven
 
     echo ""
     echo "-------------------------------------------------------"
     log_info "Configuração inicial concluída!"
     echo "-------------------------------------------------------"
     echo "Próximos Passos:"
-    echo "1. FAÇA LOGOUT E LOGIN NOVAMENTE (ou reinicie o sistema) para que o Zsh seja seu shell ativo."
+    echo "1. FAÇA LOGOUT E LOGIN NOVAMENTE (ou reinicie o sistema) para que o Zsh seja seu shell ativo e as fontes sejam reconhecidas."
     echo "   Isso também garantirá que o SDKMAN! seja carregado no seu ambiente Zsh."
-    echo "2. Abra o terminal Kitty (que foi instalado)."
+    echo "2. Abra o terminal Kitty (que foi instalado) e configure-o para usar a fonte '${font_name} Nerd Font'."
     echo "3. No Kitty, execute o segundo script: ./finalizacao.sh"
     echo "   (Este script removerá o GNOME Terminal)."
     echo "4. Após executar finalizacao.sh, abra o Neovim (nvim) pela primeira vez para que o LazyVim configure os plugins."
@@ -160,23 +189,3 @@ main() {
 main
 
 exit 0
-
-
-Script finalizacao.sh (atualizado para mencionar SDKMAN!):
-
-#!/bin/bash
-set -e
-
-echo "INFO: Removendo GNOME Terminal..."
-sudo dnf remove -y gnome-terminal
-
-echo "INFO: GNOME Terminal removido."
-echo "INFO: Processo de pós-instalação finalizado."
-echo "INFO: Lembre-se de abrir o Neovim (nvim) para o LazyVim instalar os plugins, se ainda não o fez."
-echo "INFO: Verifique se o SDKMAN! está funcionando ('sdk version') e instale as SDKs desejadas (ex: 'sdk install java')."
-IGNORE_WHEN_COPYING_START
-content_copy
-download
-Use code with caution.
-Bash
-IGNORE_WHEN_COPYING_END

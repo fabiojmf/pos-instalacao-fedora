@@ -84,8 +84,67 @@ install_neovim_lazyvim() {
 
 # 5. Garantir que o GCC e ferramentas de desenvolvimento estejam instaladas
 install_dev_tools() {
-    log_info "Instalando GCC e ferramentas de desenvolvimento básicas..."
-    sudo dnf groupinstall -y "Development Tools"
+    log_info "Garantindo que GCC e ferramentas de desenvolvimento estejam instaladas..."
+
+    local dnf_version_major
+    # Extrai o primeiro número da versão do DNF (e.g., 4 ou 5)
+    # Se dnf --version falhar, dnf_version_major ficará vazio, e o else será usado.
+    dnf_version_major=$(dnf --version 2>/dev/null | head -n1 | cut -d' ' -f1 | cut -d'.' -f1)
+
+    local group_install_cmd
+
+    if [[ "$dnf_version_major" == "5" ]]; then
+        log_info "DNF versão $dnf_version_major detectada. Usando sintaxe DNF5: 'dnf group install'"
+        group_install_cmd="sudo dnf group install -y"
+    elif [[ "$dnf_version_major" =~ ^[0-4]$ ]]; then # Assume versões 0-4 como DNF clássico
+        log_info "DNF versão $dnf_version_major detectada. Usando sintaxe DNF clássica: 'dnf groupinstall'"
+        group_install_cmd="sudo dnf groupinstall -y"
+    else
+        log_warn "Não foi possível determinar a versão principal do DNF (saída: '$(dnf --version 2>/dev/null | head -n1)')."
+        log_info "Tentando 'sudo dnf group install -y' (DNF5) como padrão moderno."
+        # Como fallback, tenta a sintaxe do DNF5, que é a mais provável em sistemas novos/atualizados.
+        # Se isso falhar, o fallback de instalar gcc individualmente ainda se aplica.
+        group_install_cmd="sudo dnf group install -y"
+    fi
+
+    log_info "Tentando instalar o grupo 'Development Tools' (inclui GCC, G++, make, etc.) usando: ${group_install_cmd} \"Development Tools\""
+    if ${group_install_cmd} "Development Tools"; then
+        log_info "Comando '${group_install_cmd} \"Development Tools\"' executado com sucesso ou o grupo já estava instalado."
+    else
+        log_warn "Falha ao executar '${group_install_cmd} \"Development Tools\"'."
+        log_info "Tentando instalar 'gcc' e 'gcc-c++' explicitamente como fallback..."
+        if sudo dnf install -y gcc gcc-c++; then
+            log_info "GCC e G++ (compilador C++) instalados explicitamente com sucesso."
+        else
+            log_error "Falha ao instalar 'gcc' e 'gcc-c++' explicitamente. Verifique os logs do DNF e a saída de erro."
+            log_error "Pode ser necessário instalar manualmente: sudo dnf install gcc gcc-c++ make"
+            return 1 # Indica falha
+        fi
+    fi
+
+    # Verificação explícita do GCC
+    log_info "Verificando a presença do compilador GCC..."
+    if command -v gcc &>/dev/null; then
+        log_info "GCC encontrado:"
+        gcc --version
+    else
+        log_error "GCC não foi encontrado mesmo após as tentativas de instalação."
+        log_error "Por favor, verifique os logs do DNF e tente instalar o GCC manualmente: sudo dnf install gcc"
+        return 1 # Indica falha
+    fi
+
+    # Opcional: Verificar outras ferramentas comuns como 'make'
+    log_info "Verificando a presença do 'make'..."
+    if command -v make &>/dev/null; then
+        log_info "'make' encontrado:"
+        make --version
+    else
+        log_warn "'make' não encontrado. Se necessário, instale com: sudo dnf install make"
+        # Você pode querer adicionar 'make' ao fallback de instalação individual se for crítico.
+        # Ex: if sudo dnf install -y gcc gcc-c++ make; then ...
+    fi
+
+    log_info "Instalação/verificação de ferramentas de desenvolvimento concluída."
 }
 
 # 6. Remover aplicativos específicos do GNOME

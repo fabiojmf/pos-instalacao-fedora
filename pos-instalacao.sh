@@ -229,15 +229,71 @@ remove_gnome_apps() {
 
 # 9. Instalar SDKMAN!
 install_sdkman() {
-    log_info "Verificando SDKMAN!..."
-    if [ -d "$HOME/.sdkman" ]; then
-        log_info "SDKMAN! já está instalado em $HOME/.sdkman. Pulando instalação."
+    log_info "Verificando e configurando SDKMAN!..."
+    local sdkman_install_dir="$HOME/.sdkman"
+
+    if [ ! -d "$sdkman_install_dir" ]; then
+        log_info "SDKMAN! não encontrado. Instalando..."
+        # Removemos "?rcupdate=false" para permitir que o instalador do SDKMAN! tente configurar os arquivos RC.
+        if curl -s "https://get.sdkman.io" | bash; then
+            log_info "Script de instalação do SDKMAN! executado."
+            # O instalador deve ter criado o diretório
+            if [ ! -d "$sdkman_install_dir" ]; then
+                 log_error "Falha na instalação do SDKMAN!: diretório $sdkman_install_dir não foi criado."
+                 return 1
+            fi
+            log_info "SDKMAN! instalado com sucesso em $sdkman_install_dir."
+        else
+            log_error "Falha ao baixar ou executar o script de instalação do SDKMAN!."
+            return 1
+        fi
     else
-        log_info "Instalando SDKMAN!..."
-        curl -s "https://get.sdkman.io?rcupdate=false" | bash
-        log_info "SDKMAN! instalado."
-        log_info "Para usar o SDKMAN! na sessão atual, execute: source \"\$HOME/.sdkman/bin/sdkman-init.sh\""
+        log_info "SDKMAN! já está instalado em $sdkman_install_dir."
     fi
+
+    # Garante que os arquivos RC (.zshrc, .bashrc) estejam configurados para SDKMAN!
+    # Esta é a configuração padrão que o SDKMAN! adiciona.
+    local sdkman_rc_config_lines=(
+        "" # Linha em branco para separação
+        "#SDKMAN!"
+        "export SDKMAN_DIR=\"$sdkman_install_dir\""
+        "[[ -s \"${sdkman_install_dir}/bin/sdkman-init.sh\" ]] && source \"${sdkman_install_dir}/bin/sdkman-init.sh\""
+    )
+
+    local rc_files_to_check=()
+    if [ -f "$HOME/.zshrc" ] || command -v zsh >/dev/null 2>&1; then # Se .zshrc existe ou zsh está instalado
+        if [ ! -f "$HOME/.zshrc" ]; then
+            log_info "Criando $HOME/.zshrc pois Zsh está instalado mas o arquivo não existe."
+            touch "$HOME/.zshrc"
+        fi
+        rc_files_to_check+=("$HOME/.zshrc")
+    fi
+    if [ -f "$HOME/.bashrc" ] || [ -n "$BASH_VERSION" ]; then # Se .bashrc existe ou estamos em uma sessão Bash
+         if [ ! -f "$HOME/.bashrc" ]; then
+            log_info "Criando $HOME/.bashrc pois o arquivo não existe."
+            touch "$HOME/.bashrc"
+        fi
+        rc_files_to_check+=("$HOME/.bashrc")
+    fi
+    
+    local modified_rc_count=0
+    for rc_file in "${rc_files_to_check[@]}"; do
+        # Verifica se a linha de inicialização do sdkman já existe
+        if ! grep -qF -- "sdkman-init.sh" "$rc_file"; then
+            log_info "Adicionando configuração do SDKMAN! ao arquivo $rc_file..."
+            printf "%s\n" "${sdkman_rc_config_lines[@]}" >> "$rc_file"
+            log_info "Configuração do SDKMAN! adicionada a $rc_file."
+            modified_rc_count=$((modified_rc_count + 1))
+        else
+            log_info "SDKMAN! já parece estar configurado em $rc_file."
+        fi
+    done
+
+    if [ "$modified_rc_count" -gt 0 ]; then
+        log_info "Configuração do SDKMAN! nos arquivos RC concluída."
+        log_info "IMPORTANTE: SDKMAN! estará disponível em novas sessões de terminal (após logout/login ou reinicialização)."
+    fi
+    log_info "Verificação/Configuração do SDKMAN! finalizada."
 }
 
 # 10. Instalar Maven

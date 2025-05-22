@@ -234,10 +234,8 @@ install_sdkman() {
 
     if [ ! -d "$sdkman_install_dir" ]; then
         log_info "SDKMAN! não encontrado. Instalando..."
-        # Removemos "?rcupdate=false" para permitir que o instalador do SDKMAN! tente configurar os arquivos RC.
         if curl -s "https://get.sdkman.io" | bash; then
             log_info "Script de instalação do SDKMAN! executado."
-            # O instalador deve ter criado o diretório
             if [ ! -d "$sdkman_install_dir" ]; then
                  log_error "Falha na instalação do SDKMAN!: diretório $sdkman_install_dir não foi criado."
                  return 1
@@ -251,24 +249,22 @@ install_sdkman() {
         log_info "SDKMAN! já está instalado em $sdkman_install_dir."
     fi
 
-    # Garante que os arquivos RC (.zshrc, .bashrc) estejam configurados para SDKMAN!
-    # Esta é a configuração padrão que o SDKMAN! adiciona.
     local sdkman_rc_config_lines=(
-        "" # Linha em branco para separação
+        ""
         "#SDKMAN!"
         "export SDKMAN_DIR=\"$sdkman_install_dir\""
         "[[ -s \"${sdkman_install_dir}/bin/sdkman-init.sh\" ]] && source \"${sdkman_install_dir}/bin/sdkman-init.sh\""
     )
 
     local rc_files_to_check=()
-    if [ -f "$HOME/.zshrc" ] || command -v zsh >/dev/null 2>&1; then # Se .zshrc existe ou zsh está instalado
+    if [ -f "$HOME/.zshrc" ] || command -v zsh >/dev/null 2>&1; then
         if [ ! -f "$HOME/.zshrc" ]; then
             log_info "Criando $HOME/.zshrc pois Zsh está instalado mas o arquivo não existe."
             touch "$HOME/.zshrc"
         fi
         rc_files_to_check+=("$HOME/.zshrc")
     fi
-    if [ -f "$HOME/.bashrc" ] || [ -n "$BASH_VERSION" ]; then # Se .bashrc existe ou estamos em uma sessão Bash
+    if [ -f "$HOME/.bashrc" ] || [ -n "$BASH_VERSION" ]; then
          if [ ! -f "$HOME/.bashrc" ]; then
             log_info "Criando $HOME/.bashrc pois o arquivo não existe."
             touch "$HOME/.bashrc"
@@ -278,7 +274,6 @@ install_sdkman() {
     
     local modified_rc_count=0
     for rc_file in "${rc_files_to_check[@]}"; do
-        # Verifica se a linha de inicialização do sdkman já existe
         if ! grep -qF -- "sdkman-init.sh" "$rc_file"; then
             log_info "Adicionando configuração do SDKMAN! ao arquivo $rc_file..."
             printf "%s\n" "${sdkman_rc_config_lines[@]}" >> "$rc_file"
@@ -303,11 +298,30 @@ install_maven() {
     log_info "Maven instalado a partir dos repositórios do Fedora."
 }
 
-# 11. Instalar Nerd Font (CodeNewRoman)
+# 11. Instalar podman-compose
+install_podman_compose() {
+    log_info "Instalando podman-compose via dnf..."
+
+    if sudo dnf install -y podman-compose; then
+        log_info "podman-compose instalado com sucesso via dnf."
+        if command -v podman-compose &>/dev/null; then
+            log_info "podman-compose encontrado no PATH."
+            podman-compose --version
+        else
+            # Isso seria inesperado se o dnf install for bem-sucedido
+            log_warn "podman-compose foi instalado via dnf, mas 'command -v podman-compose' falhou."
+        fi
+    else
+        log_error "Falha ao instalar podman-compose via dnf."
+        return 1
+    fi
+    log_info "Instalação do podman-compose concluída."
+}
+
+# 12. Instalar Nerd Font (CodeNewRoman)
 install_nerd_fonts() {
     local font_name="CodeNewRoman"
-    # ATUALIZE ESTA TAG SE NECESSÁRIO PARA A ÚLTIMA VERSÃO DA FONTE
-    local latest_nerd_font_release_tag="v3.4.0"
+    local latest_nerd_font_release_tag="v3.4.0" # ATUALIZE ESTA TAG SE NECESSÁRIO
     local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/${latest_nerd_font_release_tag}/${font_name}.zip"
     local user_fonts_dir="$HOME/.local/share/fonts"
     local tmp_dir
@@ -340,7 +354,7 @@ install_nerd_fonts() {
     log_info "Instalação da Nerd Font concluída."
 }
 
-# 12. Instalar aplicativos Flatpak
+# 13. Instalar aplicativos Flatpak
 install_flatpak_apps() {
     log_info "Instalando aplicativos Flatpak selecionados..."
     
@@ -351,8 +365,7 @@ install_flatpak_apps() {
 
     for app_id in "${flatpaks_to_install[@]}"; do
         log_info "Tentando instalar/atualizar $app_id via Flatpak..."
-        # flatpak install lida com apps já instalados (atualiza ou não faz nada)
-        if flatpak install flathub "$app_id" -y; then # Instala por usuário
+        if flatpak install flathub "$app_id" -y; then
             log_info "$app_id instalado/atualizado com sucesso."
         else
             log_error "Falha ao instalar $app_id via Flatpak. Tente manualmente: flatpak install flathub $app_id"
@@ -374,15 +387,16 @@ main() {
     install_zsh_ohmyzsh
     install_kitty
     install_zellij
-    install_nerd_fonts
     install_neovim_lazyvim
     install_dev_tools
     
     # Ferramentas de Desenvolvimento Adicionais
     install_sdkman
     install_maven
-
-    # Aplicativos GUI Adicionais
+    install_podman_compose # Mantém a chamada aqui
+    
+    # Fontes e Aplicativos GUI
+    install_nerd_fonts
     install_flatpak_apps
 
     echo ""
@@ -400,6 +414,7 @@ main() {
     echo "4. Abra o Neovim (nvim) pela primeira vez para que o LazyVim configure os plugins."
     echo "5. Abra os aplicativos Flatpak (Bitwarden, IntelliJ IDEA Ultimate) e fixe-os no seu painel/dock manualmente, se desejar."
     echo "6. Use SDKMAN! (ex: 'sdk list java', 'sdk install java VERSAO_DESEJADA')."
+    echo "7. Verifique a instalação do podman-compose: podman-compose --version"
     echo "-------------------------------------------------------"
 }
 

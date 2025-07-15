@@ -318,20 +318,20 @@ install_podman_compose() {
     log_info "Instalação do podman-compose concluída."
 }
 
-# 12. Instalar Nerd Font (CodeNewRoman)
-install_nerd_fonts() {
-    local font_name="CodeNewRoman"
-    local latest_nerd_font_release_tag="v3.4.0" # ATUALIZE ESTA TAG SE NECESSÁRIO
-    local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/${latest_nerd_font_release_tag}/${font_name}.zip"
+# 12. Instalar Fonte (CamingoCode) - ATUALIZADO
+install_camingocode_font() {
+    local font_name="CamingoCode"
+    local font_zip_url="https://janfromm.de/typefaces/camingocode/camingocode.zip"
     local user_fonts_dir="$HOME/.local/share/fonts"
     local tmp_dir
-    tmp_dir=$(mktemp -d -t nerd-font-install-XXXXXX)
+    tmp_dir=$(mktemp -d -t font-install-XXXXXX)
     trap 'rm -rf -- "$tmp_dir"' RETURN
 
-    log_info "Instalando Nerd Font: ${font_name}..."
-
-    if fc-list | grep -qi "${font_name// /.*}"; then
-        log_info "Fonte ${font_name} Nerd Font parece já estar instalada. Pulando."
+    log_info "Instalando Fonte: ${font_name}..."
+    
+    # Verifica se algum arquivo de fonte com "Camingo" no nome já existe
+    if fc-list | grep -qi "Camingo"; then
+        log_info "Fonte ${font_name} parece já estar instalada. Pulando."
         return 0
     fi
 
@@ -340,21 +340,48 @@ install_nerd_fonts() {
     log_info "Baixando ${font_name}.zip de ${font_zip_url}..."
     if curl -LfsS "$font_zip_url" -o "$tmp_dir/${font_name}.zip"; then
         log_info "Descompactando fontes em $tmp_dir..."
-        if unzip -qjo "$tmp_dir/${font_name}.zip" "*.ttf" "*.otf" -d "$user_fonts_dir"; then
+        # O zip da CamingoCode contém um diretório, então descompactamos para o diretório de fontes do usuário
+        if unzip -qj "$tmp_dir/${font_name}.zip" -d "$user_fonts_dir"; then
             log_info "Fontes extraídas para $user_fonts_dir."
             log_info "Atualizando cache de fontes..."
             fc-cache -fv
-            log_info "${font_name} Nerd Font instalada com sucesso."
+            log_info "${font_name} instalada com sucesso."
         else
-            log_error "Falha ao descompactar ${font_name}.zip. Pode estar corrompido ou não conter arquivos .ttf/.otf esperados."
+            log_error "Falha ao descompactar ${font_name}.zip. Pode estar corrompido ou ter uma estrutura inesperada."
         fi
     else
         log_error "Falha ao baixar ${font_name}.zip. Verifique a URL (${font_zip_url}) ou sua conexão."
     fi
-    log_info "Instalação da Nerd Font concluída."
+    log_info "Instalação da Fonte concluída."
 }
 
-# 13. Instalar aplicativos Flatpak
+# 13. Instalar npm (se não estiver presente) - NOVO
+install_npm() {
+    log_info "Verificando e instalando npm (Node Package Manager)..."
+    if command -v npm &> /dev/null; then
+        log_info "npm já está instalado."
+        npm --version
+    else
+        log_info "npm não encontrado. Tentando instalar via dnf..."
+        # No Fedora, o pacote 'npm' instala o 'nodejs' como dependência.
+        # Esta é a maneira correta de garantir que ambos estejam presentes.
+        if sudo dnf install -y npm; then
+            log_info "npm instalado com sucesso."
+            if command -v npm &> /dev/null; then
+                npm --version
+            else
+                log_error "A instalação do npm via dnf foi concluída, mas o comando 'npm' ainda não foi encontrado no PATH."
+                return 1
+            fi
+        else
+            log_error "Falha ao instalar o npm via dnf. Verifique os logs."
+            return 1
+        fi
+    fi
+    log_info "Instalação/verificação do npm concluída."
+}
+
+# 14. Instalar aplicativos Flatpak
 install_flatpak_apps() {
     log_info "Instalando aplicativos Flatpak selecionados..."
     
@@ -393,17 +420,18 @@ main() {
     # Ferramentas de Desenvolvimento Adicionais
     install_sdkman
     install_maven
-    install_podman_compose # Mantém a chamada aqui
+    install_podman_compose
+    install_npm # Adicionado para garantir que o npm esteja instalado
     
     # Fontes e Aplicativos GUI
-    install_nerd_fonts
+    install_camingocode_font # Função de fonte atualizada
     install_flatpak_apps
 
     echo ""
     echo "-------------------------------------------------------"
     log_info "Configuração inicial concluída!"
     echo "-------------------------------------------------------"
-    local font_display_name="CodeNewRoman Nerd Font"
+    local font_display_name="CamingoCode" # Nome da fonte atualizado
     echo "Próximos Passos:"
     echo "1. FAÇA LOGOUT E LOGIN NOVAMENTE (ou reinicie o sistema) para que todas as alterações tenham efeito:"
     echo "   - Zsh como shell ativo e SDKMAN! carregado."
@@ -413,8 +441,9 @@ main() {
     echo "3. No Kitty, inicie Zellij com: zellij"
     echo "4. Abra o Neovim (nvim) pela primeira vez para que o LazyVim configure os plugins."
     echo "5. Abra os aplicativos Flatpak (Bitwarden, IntelliJ IDEA Ultimate) e fixe-os no seu painel/dock manualmente, se desejar."
-    echo "6. Use SDKMAN! (ex: 'sdk list java', 'sdk install java VERSAO_DESEJADA')."
+    echo "6. Use SDKMAN! para gerenciar outras ferramentas (ex: 'sdk list java', 'sdk install java VERSAO_DESEJADA')."
     echo "7. Verifique a instalação do podman-compose: podman-compose --version"
+    echo "8. Verifique a instalação do npm: npm --version"
     echo "-------------------------------------------------------"
 }
 

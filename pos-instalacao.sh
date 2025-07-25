@@ -401,6 +401,48 @@ install_flatpak_apps() {
     log_info "Instalação de aplicativos Flatpak concluída."
 }
 
+# 15. Instalar Drivers da NVIDIA (para placas compatíveis)
+install_nvidia_drivers() {
+    log_info "Verificando a presença de uma placa de vídeo NVIDIA..."
+    if ! lspci | grep -qi "NVIDIA"; then
+        log_info "Nenhuma placa NVIDIA detectada. Pulando instalação dos drivers."
+        return 0
+    fi
+
+    log_warn "Placa NVIDIA detectada. Preparando para instalar os drivers proprietários."
+    log_warn "IMPORTANTE: Isso requer a instalação dos repositórios RPM Fusion."
+
+    # Passo 1: Instalar repositórios RPM Fusion (Free e Non-free)
+    log_info "Instalando repositórios RPM Fusion..."
+    if ! rpm -q rpmfusion-nonfree-release &>/dev/null; then
+        sudo dnf install -y \
+            "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+            "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+        log_info "Repositórios RPM Fusion instalados. Atualizando metadados do dnf..."
+        sudo dnf group update core -y # Sincroniza os metadados do novo repositório
+    else
+        log_info "Repositórios RPM Fusion já parecem estar instalados."
+    fi
+
+    # Passo 2: Instalar os drivers da NVIDIA via akmod
+    # Adicionamos 'xorg-x11-drv-nvidia-cuda' para suporte a CUDA, muito útil para a RTX 3060
+    log_info "Instalando os drivers da NVIDIA (akmod-nvidia e suporte a CUDA)..."
+    if sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda --enablerepo='rpmfusion-nonfree*'; then
+        log_info "Pacotes de driver NVIDIA instalados com sucesso."
+    else
+        log_error "Falha ao instalar os pacotes do driver NVIDIA. Verifique os logs do DNF."
+        return 1
+    fi
+
+    # Passo 3: Avisos cruciais sobre o pós-instalação
+    log_warn "Aguarde alguns minutos! O sistema está compilando o módulo do kernel (akmod) em segundo plano."
+    log_warn "Uma reinicialização é NECESSÁRIA para carregar o novo driver."
+    log_warn "ATENÇÃO AO SECURE BOOT:"
+    log_warn "Se você usa Secure Boot, na próxima reinicialização, uma tela azul (MOK Manager) aparecerá."
+    log_warn "Você DEVE selecionar 'Enroll MOK' ou 'Enroll key', confirmar e inserir a senha que você usa para o sudo/login quando solicitado."
+    log_warn "Se você ignorar este passo no Secure Boot, o sistema pode não carregar a interface gráfica."
+}
+
 # --- Execução Principal ---
 main() {
     install_prerequisites_and_update
@@ -416,6 +458,9 @@ main() {
     install_zellij
     install_neovim_lazyvim
     install_dev_tools
+
+    # Drivers de Hardware
+    install_nvidia_drivers
     
     # Ferramentas de Desenvolvimento Adicionais
     install_sdkman
@@ -431,19 +476,22 @@ main() {
     echo "-------------------------------------------------------"
     log_info "Configuração inicial concluída!"
     echo "-------------------------------------------------------"
-    local font_display_name="CamingoCode" # Nome da fonte atualizado
-    echo "Próximos Passos:"
-    echo "1. FAÇA LOGOUT E LOGIN NOVAMENTE (ou reinicie o sistema) para que todas as alterações tenham efeito:"
-    echo "   - Zsh como shell ativo e SDKMAN! carregado."
-    echo "   - Fontes reconhecidas e Zellij no PATH global."
-    echo "   - Aplicativos Flatpak completamente integrados."
-    echo "2. Abra o terminal Kitty e configure-o para usar a fonte '${font_display_name}'."
-    echo "3. No Kitty, inicie Zellij com: zellij"
-    echo "4. Abra o Neovim (nvim) pela primeira vez para que o LazyVim configure os plugins."
-    echo "5. Abra os aplicativos Flatpak (Bitwarden, IntelliJ IDEA Ultimate) e fixe-os no seu painel/dock manualmente, se desejar."
-    echo "6. Use SDKMAN! para gerenciar outras ferramentas (ex: 'sdk list java', 'sdk install java VERSAO_DESEJADA')."
-    echo "7. Verifique a instalação do podman-compose: podman-compose --version"
-    echo "8. Verifique a instalação do npm: npm --version"
+    local font_display_name="CamingoCode"
+    echo "Próximos Passos CRÍTICOS:"
+    echo "1. REINICIE O SISTEMA AGORA. Uma reinicialização é obrigatória para:"
+    echo "   - Carregar o driver da NVIDIA recém-instalado."
+    echo "   - Ativar o Zsh como seu shell padrão."
+    echo "   - Carregar o SDKMAN! no novo shell."
+    echo "2. ATENÇÃO - SECURE BOOT: Se você usa Secure Boot, após reiniciar, uma tela azul (MOK Management) aparecerá."
+    echo "   -> Selecione 'Enroll MOK' -> 'Continue'."
+    echo "   -> Confirme a chave e insira sua senha quando solicitado."
+    echo "   -> Se você pular isso, sua sessão gráfica pode não iniciar!"
+    echo ""
+    echo "Após a reinicialização bem-sucedida:"
+    echo " - Abra o terminal Kitty e configure-o para usar a fonte '${font_display_name}'."
+    echo " - Inicie o Zellij com: zellij"
+    echo " - Abra o Neovim (nvim) para que o LazyVim finalize a configuração."
+    echo " - Verifique os aplicativos e ferramentas instalados."
     echo "-------------------------------------------------------"
 }
 

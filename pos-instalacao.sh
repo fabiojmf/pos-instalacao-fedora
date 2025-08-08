@@ -264,19 +264,22 @@ install_podman_compose() {
     fi
 }
 
-# 12. Instalar Fonte (CamingoCode)
-install_camingocode_font() {
-    local font_name="CamingoCode"
-    local font_zip_url="https://janfromm.de/typefaces/camingocode/camingocode.zip"
+# 12. Instalar Fonte (CodeNewRoman Nerd Font)
+install_codenewroman_font() {
+    local font_name="CodeNewRoman"
+    # URL da nova fonte que você escolheu
+    local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/CodeNewRoman.zip"
     local user_fonts_dir="$HOME/.local/share/fonts"
     local tmp_dir
+
     tmp_dir=$(mktemp -d -t font-install-XXXXXX)
     trap 'rm -rf -- "$tmp_dir"' RETURN
 
-    log_info "Instalando Fonte: ${font_name}..."
+    log_info "Instalando Fonte: ${font_name} Nerd Font..."
     
-    if fc-list | grep -qi "Camingo"; then
-        log_info "Fonte ${font_name} parece já estar instalada. Pulando."
+    # Verifica se a fonte já está instalada para evitar trabalho desnecessário
+    if fc-list | grep -qi "CodeNewRoman Nerd Font"; then
+        log_info "Fonte ${font_name} Nerd Font parece já estar instalada. Pulando."
         return 0
     fi
 
@@ -284,17 +287,20 @@ install_camingocode_font() {
 
     log_info "Baixando ${font_name}.zip..."
     if curl -LfsS "$font_zip_url" -o "$tmp_dir/${font_name}.zip"; then
-        # A flag -j do unzip remove a estrutura de diretórios do zip
-        if unzip -qj "$tmp_dir/${font_name}.zip" -d "$user_fonts_dir"; then
+        # Extrai os arquivos de fonte para o diretório de fontes do usuário
+        # A opção -o sobrescreve arquivos existentes sem perguntar
+        if unzip -o "$tmp_dir/${font_name}.zip" -d "$user_fonts_dir"; then
             log_info "Fontes extraídas para $user_fonts_dir."
-            log_info "Atualizando cache de fontes..."
+            log_info "Atualizando cache de fontes do sistema..."
             fc-cache -fv
-            log_info "${font_name} instalada com sucesso."
+            log_info "${font_name} Nerd Font instalada com sucesso."
         else
             log_error "Falha ao descompactar ${font_name}.zip."
+            return 1 # Adicionado para robustez
         fi
     else
         log_error "Falha ao baixar ${font_name}.zip."
+        return 1 # Adicionado para robustez
     fi
 }
 
@@ -442,7 +448,7 @@ main() {
     install_npm
     
     # Fontes e Aplicativos GUI
-    install_camingocode_font
+    install_codenewroman_font
     install_flatpak_apps   # Instala o Bitwarden
     install_intellij_manual # Instala o IntelliJ manualmente
 
@@ -464,7 +470,7 @@ main() {
     echo " - IntelliJ IDEA: O executável foi instalado em um diretório dentro de /opt/."
     echo "   Para executá-lo, encontre o script 'idea.sh' (ex: /opt/idea-IU-*/bin/idea.sh)."
     echo "   Você pode criar um atalho (.desktop) para ele manualmente."
-    echo " - Abra o terminal Kitty e configure-o para usar a fonte 'CamingoCode'."
+    echo " - Abra o terminal Kitty e configure-o para usar a fonte 'CodeNewRoman Nerd Font'."
     echo " - Inicie o Zellij com: zellij"
     echo " - Abra o Neovim (nvim) para que o LazyVim finalize a configuração."
     echo "-------------------------------------------------------"

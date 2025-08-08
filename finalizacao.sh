@@ -26,66 +26,87 @@ configure_kitty() {
 
     log_info "Criando arquivo de configuração principal: $kitty_conf_file..."
     # 'set -e' já garante que o script sairá em caso de falha no 'cat'.
+    # O conteúdo abaixo foi substituído conforme sua solicitação.
     cat << 'EOF' > "$kitty_conf_file"
-# --- Tema e Aparência ---
-# Tema importado de um arquivo separado.
+# themes
 include GruvBox_DarkHard.conf
+#include Wryan.conf
+#include VSCode_Dark.conf
 
-# Opacidade do fundo (1.0 = totalmente opaco).
+# terminal opacity and blur
 background_opacity 1.0
+background_blur 1
+
+# advance 
+term xterm-kitty
+
+# terminal bell
+enable_audio_bell no
+
+# os specific tweaks (Gnome window decoration for wayland)
+linux_display_server x11
 
 # --- Fonte ---
-# ## REVISADO ##
-# A fonte 'CodeNewRoman Nerd Font' foi instalada pelo script anterior.
 font_family        CodeNewRoman Nerd Font
 bold_font          auto
 italic_font        auto
 bold_italic_font   auto
 font_size          12.0
 
-# Atalho para resetar o tamanho da fonte.
+# font size management 
 map ctrl+shift+backspace change_font_size all 0
 
-# --- Cursor ---
-cursor_shape     block
-# Desativa o piscar do cursor para economizar recursos.
+# cursor customization
+# block / beam / underline
+cursor_shape block
 cursor_blink_interval 0
-
-# --- Comportamento do Terminal ---
-# Número de linhas para guardar no histórico de scroll.
-scrollback_lines 5000
-
-# Desativa o sino de áudio do terminal.
-enable_audio_bell no
-
-# Integração com o shell para funcionalidades avançadas.
+cursor_stop_blinking_after 0
 shell_integration no-cursor
 
-# Configuração de servidor gráfico (Wayland/X11).
-# Comentado para permitir que o Kitty autodetecte. É a opção mais segura no Fedora.
-# Descomente e defina como 'x11' ou 'wayland' apenas se encontrar problemas.
-# linux_display_server x11
+# scrollback
+scrollback_lines 5000
+wheel_scroll_multiplier 3.0
 
-# --- Layout e Janelas ---
-# Layouts de janela habilitados. 'tall' é um bom padrão.
+# mouse
+mouse_hide_wait -1
+
+# window layout
+remember_window_size  no
+initial_window_width  1200
+initial_window_height 750
+window_border_width 1.5pt
 enabled_layouts tall
+window_padding_width 0
+window_margin_width 2
+hide_window_decorations no
 
-# Gerenciamento de janelas (splits).
-map ctrl+shift+enter new_window_with_cwd
-map ctrl+shift+]     next_window
-map ctrl+shift+[     previous_window
+# window management 
+map ctrl+shift+enter new_window
+map ctrl+shift+] next_window
+map ctrl+shift+[ previous_window
 
-# Gerenciamento de abas.
-tab_bar_style      powerline
+# layout management
+map ctrl+shift+l next_layout
+map ctrl+alt+r goto_layout tall
+map ctrl+alt+s goto_layout stack
+
+# tab bar customization
+tab_bar_style powerline
 tab_powerline_style slanted
-map ctrl+shift+t     new_tab_with_cwd
+tab_bar_edge bottom
+tab_bar_align left
+active_tab_font_style   bold
+inactive_tab_font_style normal
+
+# tab management
+map ctrl+shift+t new_tab
 map ctrl+shift+right next_tab
-map ctrl+shift+left  previous_tab
-map ctrl+shift+q     close_tab
+map ctrl+shift+left previous_tab
+map ctrl+shift+q close_tab
 EOF
 
     log_info "Criando arquivo de tema do Kitty: $kitty_theme_file..."
-    # 'set -e' também se aplica aqui.
+    # Este arquivo ainda é necessário porque a configuração principal inclui 'GruvBox_DarkHard.conf'
     cat << 'EOF' > "$kitty_theme_file"
 # Tema: Gruvbox Dark Hard
 # Cores da Seleção

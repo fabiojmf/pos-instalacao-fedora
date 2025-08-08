@@ -173,15 +173,20 @@ install_neovim_lazyvim() {
 # 7. Garantir que o GCC e ferramentas de desenvolvimento estejam instaladas
 install_dev_tools() {
     log_info "Garantindo que GCC e ferramentas de desenvolvimento estejam instaladas..."
-    # A maneira de instalar grupos de pacotes mudou no DNF5. Este código tenta ser compatível.
-    if sudo dnf group install -y "Development Tools"; then
-        log_info "Grupo 'Development Tools' instalado com sucesso."
+    log_info "Tentando instalar o grupo de pacotes 'Development Tools'..."
+
+    # A sintaxe para instalar grupos mudou. DNF5 usa '@group-name'.
+    # Tentamos a nova sintaxe primeiro, que é mais provável em sistemas recentes (ex: Fedora 40+).
+    if sudo dnf install -y '@Development Tools'; then
+        log_info "Grupo 'Development Tools' instalado com sucesso usando a sintaxe '@'."
     else
-        log_warn "Falha ao instalar o grupo 'Development Tools'. Tentando como 'groupinstall' (legado)..."
-        if sudo dnf groupinstall -y "Development Tools"; then
-            log_info "Grupo 'Development Tools' instalado com sucesso (via groupinstall)."
+        log_warn "A sintaxe 'dnf install @' falhou. Tentando com 'dnf group install' (sintaxe mais antiga)..."
+        # Fallback para versões mais antigas do DNF que podem não precisar do '@'
+        if sudo dnf group install -y "Development Tools"; then
+            log_info "Grupo 'Development Tools' instalado com sucesso usando 'group install'."
         else
-            log_error "Falha ao instalar o grupo 'Development Tools'. Verifique os logs do DNF."
+            log_error "Falha ao instalar o grupo 'Development Tools' com ambos os métodos."
+            log_error "Por favor, tente instalar manualmente: sudo dnf install '@Development Tools'"
             return 1
         fi
     fi

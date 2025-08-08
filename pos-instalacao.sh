@@ -177,7 +177,7 @@ install_dev_tools() {
 
     # A sintaxe para instalar grupos mudou. DNF5 usa '@group-name'.
     # Tentamos a nova sintaxe primeiro, que é mais provável em sistemas recentes (ex: Fedora 40+).
-    if sudo dnf install -y '@Development Tools'; then
+    if sudo dnf install -y @development-tools; then
         log_info "Grupo 'Development Tools' instalado com sucesso usando a sintaxe '@'."
     else
         log_warn "A sintaxe 'dnf install @' falhou. Tentando com 'dnf group install' (sintaxe mais antiga)..."

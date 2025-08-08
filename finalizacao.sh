@@ -25,7 +25,7 @@ configure_kitty() {
     mkdir -p "$kitty_config_dir"
 
     log_info "Criando arquivo de configuração principal: $kitty_conf_file..."
-    # Usamos 'EOF' com aspas para evitar expansão de variáveis dentro do here-document
+    # 'set -e' já garante que o script sairá em caso de falha no 'cat'.
     cat << 'EOF' > "$kitty_conf_file"
 # --- Tema e Aparência ---
 # Tema importado de um arquivo separado.
@@ -35,9 +35,9 @@ include GruvBox_DarkHard.conf
 background_opacity 1.0
 
 # --- Fonte ---
-# A fonte 'CamingoCode' foi instalada pelo script anterior.
-# Você pode alterar para outra Nerd Font se instalar e preferir.
-font_family        CamingoCode
+# ## REVISADO ##
+# A fonte 'CodeNewRoman Nerd Font' foi instalada pelo script anterior.
+font_family        CodeNewRoman Nerd Font
 bold_font          auto
 italic_font        auto
 bold_italic_font   auto
@@ -84,12 +84,8 @@ map ctrl+shift+left  previous_tab
 map ctrl+shift+q     close_tab
 EOF
 
-    if [ $? -ne 0 ]; then
-        log_error "Falha ao criar o arquivo $kitty_conf_file."
-        return 1
-    fi
-
     log_info "Criando arquivo de tema do Kitty: $kitty_theme_file..."
+    # 'set -e' também se aplica aqui.
     cat << 'EOF' > "$kitty_theme_file"
 # Tema: Gruvbox Dark Hard
 # Cores da Seleção
@@ -135,11 +131,6 @@ cursor_text_color        #665c54
 # Cor da URL
 url_color                #458588
 EOF
-
-    if [ $? -ne 0 ]; then
-        log_error "Falha ao criar o arquivo $kitty_theme_file."
-        return 1
-    fi
 
     log_info "Configuração do Kitty concluída."
     log_info "As alterações serão aplicadas na próxima vez que o Kitty for iniciado."

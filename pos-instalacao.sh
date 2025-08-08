@@ -348,7 +348,10 @@ install_nvidia_drivers() {
     sudo dnf install -y \
         "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
         "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
-    sudo dnf group update core -y
+    
+    log_info "Sincronizando pacotes principais antes da instalação do driver..."
+    # A linha 'dnf group update core' foi substituída pelo 'dnf update' moderno.
+    sudo dnf update -y
 
     log_info "Instalando os drivers da NVIDIA (akmod-nvidia e suporte a CUDA)..."
     if sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda; then

@@ -8,10 +8,9 @@ Este repositório contém um conjunto de scripts para automatizar a configuraç�
 
 O processo de configuração é dividido em dois scripts principais:
 
-1.  **`pos-instalacao.sh`**: Script principal que realiza a maior parte da instalação de software, configuração do sistema e ambiente de desenvolvimento base.
-2.  **`finalizacao.sh`**: Script secundário que aplica configurações finais, como a configuração detalhada do terminal Kitty e a remoção do GNOME Terminal. **Este script deve ser executado APÓS o `pos-instalacao.sh` e um logout/login, e preferencialmente dentro do terminal Kitty.**
+1.  **`pos-instalacao.sh`**: Script principal que realiza a maior parte da instalação de software, configuração do sistema, instalação de drivers e ambiente de desenvolvimento base.
+2.  **`finalizacao.sh`**: Script secundário que aplica configurações finais, como a personalização detalhada do terminal Kitty. **Este script deve ser executado APÓS o `pos-instalacao.sh` e uma reinicialização completa do sistema.**
 
----
 
 ## Script 1: `pos-instalacao.sh`
 
@@ -20,30 +19,32 @@ Este é o script principal para a configuração inicial.
 ### O que este script faz?
 
 *   **Pré-requisitos e Atualização do Sistema:**
-    *   Instala dependências básicas (`curl`, `git`, `util-linux-user`, `unzip`, `tar`, `flatpak`).
+    *   Instala dependências básicas (`curl`, `git`, `util-linux-user`, `unzip`, `tar`, `flatpak`, `jq`).
     *   Atualiza todos os pacotes do sistema (`sudo dnf update -y`).
     *   Configura o repositório Flathub para Flatpak.
-*   **Remoções (Opcionais e Padrão):**
-    *   Remove jogos do GNOME (comentado por padrão na função `main`).
+*   **Limpeza do Sistema:**
+    *   Remove jogos do GNOME (descomente na função `main` para ativar).
     *   Remove aplicativos padrão do GNOME (Contatos, Mapas, Clima, Boxes, Simple Scan, Totem, Rhythmbox, Tour, Caracteres, Connections, Evince, Loupe, Logs, ABRT, Monitor do Sistema, Relógios, Calendário, Câmera).
-    *   Remove o LibreOffice.
+    *   Remove o LibreOffice (`libreoffice*`).
     *   Remove `tmux` (se instalado).
 *   **Ambiente de Shell e Terminal:**
     *   Instala `Zsh`.
     *   Instala `Oh My Zsh` (se ainda não instalado) e configura Zsh como shell padrão para o usuário atual.
-    *   **Instala** o emulador de terminal `Kitty` (a configuração detalhada é feita pelo `finalizacao.sh`).
-    *   Instala o multiplexador de terminal `Zellij` (baixa a última versão do GitHub).
-    *   Instala a Nerd Font `CodeNewRoman` para uso com ícones em terminais e editores.
+    *   Instala o emulador de terminal `Kitty`.
+    *   Instala o multiplexador de terminal `Zellij` (baixa a última versão compatível com a arquitetura do sistema a partir do GitHub).
+*   **Drivers de Hardware:**
+    *   **Detecta e instala os drivers proprietários da NVIDIA** (se uma placa NVIDIA for encontrada), incluindo suporte a CUDA. Configura os repositórios RPM Fusion necessários.
 *   **Ferramentas de Desenvolvimento:**
     *   Instala `Neovim` e `python3-neovim`.
     *   Clona o starter do `LazyVim` para `~/.config/nvim` (se o diretório não existir).
-    *   Garante que as "Ferramentas de Desenvolvimento" (incluindo `gcc`, `make`, etc.) estejam instaladas.
-    *   Instala `SDKMAN!` para gerenciamento de SDKs (Java, Groovy, etc.) e o configura para `.zshrc` e `.bashrc`.
-    *   Instala `Maven` via dnf.
+    *   Garante que o grupo de pacotes "Development Tools" (incluindo `gcc`, `make`, etc.) esteja instalado.
+    *   Instala `SDKMAN!` para gerenciamento de SDKs e o configura para o `.zshrc`.
+    *   Instala `Maven` e `npm` (Node Package Manager) via dnf.
     *   Instala `podman-compose` via dnf.
-*   **Aplicativos via Flatpak:**
-    *   Instala `Bitwarden Desktop`.
-    *   Instala `IntelliJ IDEA Ultimate`.
+*   **Fontes e Aplicativos:**
+    *   Instala a Nerd Font **`CodeNewRoman`**.
+    *   Instala `Bitwarden Desktop` via Flatpak.
+    *   **Instala o IntelliJ IDEA Ultimate manualmente:** busca a versão mais recente na API da JetBrains, baixa o arquivo `.tar.gz` e o extrai para o diretório `/opt`.
 
 ### Pré-requisitos para `pos-instalacao.sh`
 
@@ -71,31 +72,23 @@ Este é o script principal para a configuração inicial.
     ```
     Você será solicitado a fornecer sua senha `sudo` quando necessário.
 
-### Pós-Execução do `pos-instalacao.sh` (Importante!)
+### Pós-Execução do `pos-instalacao.sh` (Passos Críticos!)
 
 Após a conclusão bem-sucedida do `pos-instalacao.sh`:
 
-1.  **REINICIE A SESSÃO OU O SISTEMA:**
-    *   Faça logout e login novamente, ou reinicie o seu computador. Isso é crucial para:
+1.  **REINICIE O SISTEMA IMEDIATAMENTE:**
+    *   Uma reinicialização completa é **obrigatória** para:
+        *   Carregar o driver da NVIDIA recém-instalado (se aplicável).
         *   Ativar o Zsh como seu shell padrão.
-        *   Carregar as configurações do SDKMAN!
-        *   Garantir que as fontes instaladas sejam reconhecidas globalmente.
-        *   Assegurar que `Zellij` esteja no PATH global.
-        *   Integrar completamente os aplicativos Flatpak.
-2.  **Abra o Terminal Kitty:**
-    *   Após o login, procure e abra o terminal Kitty. Ele ainda não estará com a configuração final.
-3.  **Prossiga para o script `finalizacao.sh`** (instruções abaixo).
+        *   Permitir que o SDKMAN! seja carregado corretamente no novo shell.
+2.  **ATENÇÃO AO SECURE BOOT (SE INSTALOU DRIVERS NVIDIA):**
+    *   Após reiniciar, uma tela azul chamada **MOK Management** aparecerá.
+    *   Você **DEVE** selecionar **"Enroll MOK"** -> "Continue" -> e inserir sua senha de usuário quando solicitado para autorizar o novo driver.
+    *   Se você pular este passo, sua sessão gráfica pode não iniciar!
+3.  **Após a reinicialização bem-sucedida:**
+    *   **IntelliJ IDEA**: foi instalado em `/opt/`. Para executá-lo, procure pelo script `idea.sh` dentro do diretório criado (ex: `/opt/idea-IU-*/bin/idea.sh`). Recomenda-se criar um atalho (`.desktop`) para facilitar o acesso.
+    *   Abra o terminal (que agora deve ser o Kitty) e prossiga para o script `finalizacao.sh`.
 
-### Personalização do `pos-instalacao.sh`
-
-Você pode personalizar o script `pos-instalacao.sh` editando-o antes de executar:
-
-*   **Remoção de Jogos:** A função `remove_games()` está comentada na função `main()`. Descomente a linha `remove_games` se desejar remover os jogos.
-*   **Aplicativos GNOME:** Modifique a lista de pacotes na função `remove_gnome_apps()`.
-*   **Aplicativos Flatpak:** Edite o array `flatpaks_to_install` na função `install_flatpak_apps()`.
-*   **Nerd Font:** Altere as variáveis `font_name` e `latest_nerd_font_release_tag` (ou `font_zip_url`) na função `install_nerd_fonts()`.
-
----
 
 ## Script 2: `finalizacao.sh`
 
@@ -104,70 +97,55 @@ Este script aplica as configurações finais, principalmente para o terminal Kit
 ### O que este script faz?
 
 *   **Configuração do Kitty:**
-    *   Cria o diretório de configuração `~/.config/kitty/` (se não existir).
-    *   Cria/Substitui `~/.config/kitty/kitty.conf` com configurações predefinidas para:
-        *   Tema (incluindo `GruvBox_DarkHard.conf`).
+    *   Cria o diretório de configuração `~/.config/kitty/`.
+    *   Cria o arquivo `~/.config/kitty/kitty.conf` com configurações predefinidas para:
+        *   Tema (incluindo o arquivo `GruvBox_DarkHard.conf`).
         *   Opacidade e blur.
-        *   Fonte (`Code New Roman Nerd Font`).
-        *   Gerenciamento de tamanho de fonte.
-        *   Customização do cursor.
-        *   Configurações de scrollback e mouse.
-        *   Layout e gerenciamento de janelas/abas.
-        *   Estilo da barra de abas.
-    *   Cria/Substitui `~/.config/kitty/GruvBox_DarkHard.conf` com as definições de cores do tema.
-*   **Remoção do GNOME Terminal:**
-    *   Remove o `gnome-terminal` se estiver instalado.
+        *   Fonte (`CodeNewRoman Nerd Font`).
+        *   Customização do cursor, layout de janelas, abas e atalhos.
+    *   Cria o arquivo de tema `~/.config/kitty/GruvBox_DarkHard.conf`.
+*   **Aviso sobre o GNOME Terminal:**
+    *   Verifica se o `gnome-terminal` está instalado e, em caso afirmativo, **avisa sobre os riscos de removê-lo**, recomendando mantê-lo como um terminal de "fallback". A remoção não é mais automática.
 
 ### Pré-requisitos para `finalizacao.sh`
 
 *   O script `pos-instalacao.sh` deve ter sido executado com sucesso.
-*   Você deve ter feito **logout e login novamente** (ou reiniciado o sistema).
+*   Você deve ter **REINICIADO O SISTEMA**.
 *   `Zsh` deve ser o shell ativo.
-*   O script deve ser executado **dentro do terminal Kitty**.
 
 ### Como Usar `finalizacao.sh`
 
 1.  **Certifique-se de que os pré-requisitos acima foram atendidos.**
-2.  **Abra o terminal Kitty.**
+2.  **Abra o terminal (Kitty).**
 3.  **Navegue até o diretório onde o script está salvo.**
     ```bash
     cd <caminho_para_o_diretorio_dos_scripts>
     ```
-4.  **Torne o script `finalizacao.sh` executável (se ainda não o fez):**
+4.  **Torne o script `finalizacao.sh` executável:**
     ```bash
     chmod +x finalizacao.sh
     ```
-5.  **Execute o script `finalizacao.sh` (usando `zsh`):**
+5.  **Execute o script `finalizacao.sh`:**
     ```bash
-    zsh ./finalizacao.sh
-    # ou se o Zsh já for seu shell padrão e o shebang estiver correto:
-    # ./finalizacao.sh
+    ./finalizacao.sh
     ```
 
 ### Pós-Execução do `finalizacao.sh`
 
-1.  **Recarregue a Configuração do Kitty:**
-    *   As configurações do Kitty devem ser aplicadas. Se você executou o script dentro do Kitty, pode ser necessário recarregar a configuração (geralmente `Ctrl+Shift+F5`) ou simplesmente fechar e reabrir o Kitty para ver todas as alterações.
+1.  **Feche e Reabra o Kitty:**
+    *   Para que as novas configurações de tema e fonte sejam aplicadas, feche todas as instâncias do Kitty e abra-o novamente.
 2.  **Verifique seu Ambiente:**
     *   **Kitty:** Deverá estar com o tema e fontes configurados.
-    *   **Neovim:** Abra o Neovim (`nvim`) pela primeira vez para que o LazyVim configure os plugins.
-    *   **SDKMAN!:** Verifique se está funcionando (`sdk version`).
-    *   **Zellij:** Teste iniciando com `zellij`.
-    *   **podman-compose:** Verifique com `podman-compose --version`.
-    *   **Aplicativos Flatpak:** Verifique se Bitwarden e IntelliJ IDEA Ultimate estão acessíveis.
+    *   **Neovim:** Abra o Neovim (`nvim`) pela primeira vez para que o LazyVim finalize a instalação dos plugins.
+    *   **SDKMAN!:** Verifique se está funcionando com `sdk version`.
+    *   **Zellij:** Teste iniciando com o comando `zellij`.
 
 Seu ambiente de desenvolvimento deve estar pronto!
-
-## Observações Gerais
-
-*   Os scripts usam `set -e`, o que significa que sairão imediatamente se qualquer comando falhar.
-*   Muitas operações que envolvem instalação de pacotes ou configuração de sistema usam `sudo` e solicitarão sua senha.
-*   Uma conexão com a internet é necessária.
 
 ## Solução de Problemas (Troubleshooting)
 
 *   **Falha em `dnf`:** Verifique sua conexão com a internet e os repositórios do Fedora.
-*   **Falha no download de arquivos (Zellij, Nerd Font):** Verifique as URLs nos scripts e sua conexão. Releases no GitHub podem mudar.
-*   **Zsh não é o shell padrão após o login:** Verifique se o comando `chsh` foi executado com sucesso no `pos-instalacao.sh`. Pode ser necessário reiniciar em vez de apenas fazer logout/login.
-*   **SDKMAN! não encontrado:** Certifique-se de que as linhas de `source` foram adicionadas corretamente aos seus arquivos `.zshrc` ou `.bashrc` pelo `pos-instalacao.sh` e que você abriu um novo terminal após o login.
-*   **Configurações do Kitty não aplicadas:** Certifique-se de que o `finalizacao.sh` foi executado sem erros e que você recarregou a configuração do Kitty ou o reiniciou. Verifique também se o arquivo `~/.config/kitty/kitty.conf` foi criado corretamente.
+*   **Falha no download de arquivos (Zellij, IntelliJ):** Verifique as URLs nos scripts e sua conexão. APIs e links de releases podem mudar.
+*   **Sessão gráfica não inicia (tela preta) após reboot:** Se você instalou os drivers NVIDIA, provavelmente pulou ou falhou no passo de "Enroll MOK" no Secure Boot. Reinicie e preste atenção à tela azul.
+*   **Zsh não é o shell padrão:** Verifique se o comando `chsh` foi executado com sucesso no `pos-instalacao.sh`. Uma reinicialização completa geralmente resolve isso.
+*   **SDKMAN! não encontrado:** Certifique-se de que as linhas de `source` foram adicionadas corretamente ao seu arquivo `.zshrc` e que você reiniciou o sistema e abriu um novo terminal.

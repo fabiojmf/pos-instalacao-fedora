@@ -1,18 +1,10 @@
 #!/bin/bash
-set -e # Sair imediatamente se um comando falhar
+set -e
 
 # --- Funções de Log ---
-log_info() {
-    echo "INFO: $1"
-}
-
-log_warn() {
-    echo "WARN: $1"
-}
-
-log_error() {
-    echo "ERROR: $1" >&2
-}
+log_info() { echo "INFO: $1"; }
+log_warn() { echo "WARN: $1"; }
+log_error() { echo "ERROR: $1" >&2; }
 
 # --- Funções de Instalação e Configuração ---
 
@@ -32,8 +24,8 @@ install_prerequisites_and_update() {
 remove_games() {
     log_info "Removendo jogos..."
     sudo dnf remove -y gnome-mines gnome-sudoku aisleriot quadrapassel iagno lightsoff \
-                       swell-foop five-or-more four-in-a-row hitori gnome-klotski \
-                       gnome-robots gnome-tetravex tali || log_warn "Alguns jogos não foram encontrados ou já removidos."
+        swell-foop five-or-more four-in-a-row hitori gnome-klotski \
+        gnome-robots gnome-tetravex tali || log_warn "Alguns jogos não foram encontrados ou já removidos."
 }
 
 # 2. Remover tmux (se instalado)
@@ -42,7 +34,7 @@ remove_tmux() {
     sudo dnf remove -y tmux || log_warn "tmux não encontrado ou já removido."
 }
 
-# 3. Instalar Zsh e Oh My Zsh
+# 3. Instalar Zsh, Oh My Zsh e Powerlevel10k
 install_zsh_ohmyzsh() {
     log_info "Instalando Zsh..."
     sudo dnf install -y zsh
@@ -56,14 +48,22 @@ install_zsh_ohmyzsh() {
         sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
     fi
 
+    # Instalar Powerlevel10k
+    local p10k_dir="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+    if [ -d "$p10k_dir" ]; then
+        log_info "Powerlevel10k já está instalado. Pulando."
+    else
+        log_info "Instalando Powerlevel10k..."
+        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$p10k_dir"
+    fi
+
     log_info "Configurando Zsh como shell padrão para o usuário atual ($USER)..."
     if command -v zsh &> /dev/null; then
         if [ "$(basename "$SHELL")" != "zsh" ]; then
             sudo chsh -s "$(which zsh)" "$USER"
-            log_info "Shell padrão alterado para Zsh para o usuário $USER."
-            log_info "IMPORTANTE: A mudança terá efeito completo após logout/login ou reinicialização."
+            log_info "Shell padrão alterado para Zsh. Terá efeito após logout/login ou reinicialização."
         else
-            log_info "Zsh já é o shell padrão para o usuário $USER."
+            log_info "Zsh já é o shell padrão."
         fi
     else
         log_error "Zsh não encontrado. Não foi possível definir como shell padrão."
@@ -80,79 +80,57 @@ install_kitty() {
 install_zellij() {
     local arch
     arch=$(uname -m)
-    local zellij_bin_name="zellij"
-    local zellij_archive_name_pattern
-    local zellij_download_url
+    local zellij_archive_name
     local install_dir="/usr/local/bin"
     local tmp_dir
 
-    log_info "Verificando arquitetura para Zellij..."
     case "$arch" in
-        "x86_64")
-            zellij_archive_name_pattern="zellij-x86_64-unknown-linux-musl.tar.gz"
-            ;;
-        "aarch64")
-            zellij_archive_name_pattern="zellij-aarch64-unknown-linux-musl.tar.gz"
-            ;;
+        "x86_64") zellij_archive_name="zellij-x86_64-unknown-linux-musl.tar.gz" ;;
+        "aarch64") zellij_archive_name="zellij-aarch64-unknown-linux-musl.tar.gz" ;;
         *)
-            log_error "Arquitetura $arch não tem um binário Zellij pré-compilado comum listado neste script."
-            log_error "Por favor, instale Zellij manually de https://github.com/zellij-org/zellij/releases"
+            log_error "Arquitetura $arch não suportada para Zellij."
             return 1
             ;;
     esac
 
-    zellij_download_url="https://github.com/zellij-org/zellij/releases/latest/download/${zellij_archive_name_pattern}"
+    local zellij_download_url="https://github.com/zellij-org/zellij/releases/latest/download/${zellij_archive_name}"
 
-    log_info "Instalando/Atualizando para a versão mais recente do Zellij..."
-
+    log_info "Instalando/Atualizando Zellij..."
     tmp_dir=$(mktemp -d -t zellij-install-XXXXXX)
-    trap 'rm -rf -- "$tmp_dir"' RETURN # Garante limpeza do diretório temporário
+    trap 'rm -rf -- "$tmp_dir"' RETURN
 
-    log_info "Baixando Zellij de ${zellij_download_url} para ${tmp_dir}..."
-    if curl -LfsS "$zellij_download_url" -o "$tmp_dir/zellij.tar.gz"; then
-        log_info "Zellij baixado. Extraindo..."
-        if tar -xzf "$tmp_dir/zellij.tar.gz" -C "$tmp_dir"; then
-            local downloaded_zellij_path="$tmp_dir/$zellij_bin_name"
-
-            if [ -f "$downloaded_zellij_path" ]; then
-                chmod +x "$downloaded_zellij_path"
-                local downloaded_version
-                downloaded_version=$("$downloaded_zellij_path" --version | awk '{print $2}')
-
-                if command -v $zellij_bin_name &>/dev/null; then
-                    local installed_version
-                    installed_version=$($zellij_bin_name --version | awk '{print $2}')
-                    if [[ "$installed_version" == "$downloaded_version" ]]; then
-                        log_info "Zellij versão $installed_version já é a mais recente. Pulando instalação."
-                        return 0
-                    else
-                        log_warn "Zellij $installed_version instalado. Atualizando para $downloaded_version."
-                    fi
-                else
-                    log_info "Instalando Zellij versão $downloaded_version."
-                fi
-
-                log_info "Instalando binário do Zellij em ${install_dir}..."
-                if sudo install -m 0755 "$downloaded_zellij_path" "${install_dir}/"; then
-                    log_info "Zellij $downloaded_version instalado com sucesso em ${install_dir}/${zellij_bin_name}"
-                    "${install_dir}/${zellij_bin_name}" --version
-                else
-                    log_error "Falha ao instalar o binário do Zellij usando 'sudo install'."
-                    return 1
-                fi
-            else
-                log_error "Binário '$zellij_bin_name' não encontrado no arquivo baixado após extração."
-                return 1
-            fi
-        else
-            log_error "Falha ao extrair o arquivo Zellij (zellij.tar.gz). Pode estar corrompido."
-            return 1
-        fi
-    else
-        log_error "Falha ao baixar Zellij. Verifique a URL, sua conexão ou se a versão/arquitetura é válida."
+    if ! curl -LfsS "$zellij_download_url" -o "$tmp_dir/zellij.tar.gz"; then
+        log_error "Falha ao baixar Zellij."
         return 1
     fi
-    log_info "Instalação/Atualização do Zellij concluída."
+
+    if ! tar -xzf "$tmp_dir/zellij.tar.gz" -C "$tmp_dir"; then
+        log_error "Falha ao extrair Zellij."
+        return 1
+    fi
+
+    local downloaded="$tmp_dir/zellij"
+    if [ ! -f "$downloaded" ]; then
+        log_error "Binário zellij não encontrado após extração."
+        return 1
+    fi
+
+    chmod +x "$downloaded"
+    local new_ver
+    new_ver=$("$downloaded" --version | awk '{print $2}')
+
+    if command -v zellij &>/dev/null; then
+        local cur_ver
+        cur_ver=$(zellij --version | awk '{print $2}')
+        if [[ "$cur_ver" == "$new_ver" ]]; then
+            log_info "Zellij $cur_ver já é a mais recente. Pulando."
+            return 0
+        fi
+        log_warn "Atualizando Zellij de $cur_ver para $new_ver."
+    fi
+
+    sudo install -m 0755 "$downloaded" "${install_dir}/"
+    log_info "Zellij $new_ver instalado em ${install_dir}/zellij"
 }
 
 # 6. Instalar Neovim e LazyVim
@@ -160,89 +138,68 @@ install_neovim_lazyvim() {
     log_info "Instalando Neovim..."
     sudo dnf install -y neovim python3-neovim
 
-    log_info "Instalando LazyVim..."
     if [ ! -d "$HOME/.config/nvim" ]; then
         log_info "Clonando LazyVim starter..."
         git clone https://github.com/LazyVim/starter "$HOME/.config/nvim"
-        log_info "LazyVim starter clonado para $HOME/.config/nvim."
     else
         log_info "Diretório $HOME/.config/nvim já existe. Pulando clone do LazyVim."
     fi
 }
 
-# 7. Garantir que o GCC e ferramentas de desenvolvimento estejam instaladas
+# 7. Garantir que GCC e ferramentas de desenvolvimento estejam instaladas
 install_dev_tools() {
-    log_info "Garantindo que GCC e ferramentas de desenvolvimento estejam instaladas..."
-    log_info "Tentando instalar o grupo de pacotes 'Development Tools'..."
-
-    # A sintaxe para instalar grupos mudou. DNF5 usa '@group-name'.
-    # Tentamos a nova sintaxe primeiro, que é mais provável em sistemas recentes (ex: Fedora 40+).
+    log_info "Instalando ferramentas de desenvolvimento..."
     if sudo dnf install -y @development-tools; then
-        log_info "Grupo 'Development Tools' instalado com sucesso usando a sintaxe '@'."
+        log_info "Development Tools instalado com sucesso."
+    elif sudo dnf group install -y "Development Tools"; then
+        log_info "Development Tools instalado via group install."
     else
-        log_warn "A sintaxe 'dnf install @' falhou. Tentando com 'dnf group install' (sintaxe mais antiga)..."
-        # Fallback para versões mais antigas do DNF que podem não precisar do '@'
-        if sudo dnf group install -y "Development Tools"; then
-            log_info "Grupo 'Development Tools' instalado com sucesso usando 'group install'."
-        else
-            log_error "Falha ao instalar o grupo 'Development Tools' com ambos os métodos."
-            log_error "Por favor, tente instalar manualmente: sudo dnf install '@Development Tools'"
-            return 1
-        fi
+        log_error "Falha ao instalar Development Tools."
+        return 1
     fi
 
-    log_info "Verificando a presença do compilador GCC..."
     if command -v gcc &>/dev/null; then
         log_info "GCC encontrado: $(gcc --version | head -n1)"
     else
-        log_error "GCC não foi encontrado mesmo após as tentativas de instalação."; return 1
+        log_error "GCC não encontrado após instalação."
+        return 1
     fi
 }
 
-# 8. Remover aplicativos específicos do GNOME
+# 8. Remover aplicativos específicos do GNOME e LibreOffice
 remove_gnome_apps() {
     log_info "Removendo aplicativos específicos do GNOME..."
     sudo dnf remove -y gnome-contacts gnome-weather gnome-maps gnome-boxes simple-scan \
-                       totem rhythmbox gnome-tour gnome-characters gnome-connections \
-                       evince loupe gnome-logs gnome-abrt \
-                       gnome-system-monitor gnome-clocks gnome-calendar gnome-camera || log_warn "Alguns aplicativos GNOME não foram encontrados ou já removidos."
+        totem rhythmbox gnome-tour gnome-characters gnome-connections \
+        evince loupe gnome-logs gnome-abrt \
+        gnome-system-monitor gnome-clocks gnome-calendar gnome-camera || log_warn "Alguns aplicativos GNOME não foram encontrados ou já removidos."
+
     log_info "Removendo LibreOffice..."
     sudo dnf remove -y libreoffice* || log_warn "LibreOffice não encontrado ou já removido."
 }
 
 # 9. Instalar SDKMAN!
 install_sdkman() {
-    log_info "Verificando e configurando SDKMAN!..."
-    local sdkman_install_dir="$HOME/.sdkman"
-
-    if [ ! -d "$sdkman_install_dir" ]; then
-        log_info "SDKMAN! não encontrado. Instalando..."
-        if curl -s "https://get.sdkman.io" | bash; then
-            log_info "SDKMAN! instalado com sucesso em $sdkman_install_dir."
-        else
-            log_error "Falha ao baixar ou executar o script de instalação do SDKMAN!."
-            return 1
-        fi
+    local sdkman_dir="$HOME/.sdkman"
+    if [ ! -d "$sdkman_dir" ]; then
+        log_info "Instalando SDKMAN!..."
+        curl -s "https://get.sdkman.io" | bash || { log_error "Falha ao instalar SDKMAN!."; return 1; }
     else
-        log_info "SDKMAN! já está instalado em $sdkman_install_dir."
+        log_info "SDKMAN! já está instalado."
     fi
 
-    # Configura o .zshrc para carregar o SDKMAN!
-    local zshrc_file="$HOME/.zshrc"
-    if [ ! -f "$zshrc_file" ]; then
-        touch "$zshrc_file"
-    fi
-    if ! grep -qF -- "sdkman-init.sh" "$zshrc_file"; then
-        log_info "Adicionando configuração do SDKMAN! ao arquivo $zshrc_file..."
+    local zshrc="$HOME/.zshrc"
+    [ ! -f "$zshrc" ] && touch "$zshrc"
+    if ! grep -qF "sdkman-init.sh" "$zshrc"; then
+        log_info "Adicionando SDKMAN! ao .zshrc..."
         {
             echo ""
             echo "#SDKMAN!"
-            echo "export SDKMAN_DIR=\"$sdkman_install_dir\""
+            echo "export SDKMAN_DIR=\"$sdkman_dir\""
             echo "[[ -s \"\${SDKMAN_DIR}/bin/sdkman-init.sh\" ]] && source \"\${SDKMAN_DIR}/bin/sdkman-init.sh\""
-        } >> "$zshrc_file"
-        log_info "Configuração do SDKMAN! adicionada."
+        } >> "$zshrc"
     else
-        log_info "SDKMAN! já parece estar configurado em $zshrc_file."
+        log_info "SDKMAN! já configurado no .zshrc."
     fi
 }
 
@@ -250,188 +207,204 @@ install_sdkman() {
 install_maven() {
     log_info "Instalando Maven via dnf..."
     sudo dnf install -y maven
-    log_info "Maven instalado a partir dos repositórios do Fedora."
 }
 
 # 11. Instalar podman-compose
 install_podman_compose() {
     log_info "Instalando podman-compose via dnf..."
-    if sudo dnf install -y podman-compose; then
-        log_info "podman-compose instalado com sucesso via dnf."
-    else
-        log_error "Falha ao instalar podman-compose via dnf."
-        return 1
-    fi
+    sudo dnf install -y podman-compose || { log_error "Falha ao instalar podman-compose."; return 1; }
 }
 
-# 12. Instalar Fonte (CodeNewRoman Nerd Font)
-install_codenewroman_font() {
-    local font_name="CodeNewRoman"
-    # URL da nova fonte que você escolheu
-    local font_zip_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/CodeNewRoman.zip"
+# 12. Instalar Fonte MesloLGS NF (usada pelo Powerlevel10k)
+install_meslo_font() {
+    local font_name="MesloLGS NF"
     local user_fonts_dir="$HOME/.local/share/fonts"
-    local tmp_dir
 
-    tmp_dir=$(mktemp -d -t font-install-XXXXXX)
-    trap 'rm -rf -- "$tmp_dir"' RETURN
-
-    log_info "Instalando Fonte: ${font_name} Nerd Font..."
-    
-    # Verifica se a fonte já está instalada para evitar trabalho desnecessário
-    if fc-list | grep -qi "CodeNewRoman Nerd Font"; then
-        log_info "Fonte ${font_name} Nerd Font parece já estar instalada. Pulando."
+    if fc-list | grep -qi "MesloLGS NF"; then
+        log_info "Fonte $font_name já está instalada. Pulando."
         return 0
     fi
 
+    log_info "Instalando fonte $font_name..."
     mkdir -p "$user_fonts_dir"
 
-    log_info "Baixando ${font_name}.zip..."
-    if curl -LfsS "$font_zip_url" -o "$tmp_dir/${font_name}.zip"; then
-        # Extrai os arquivos de fonte para o diretório de fontes do usuário
-        # A opção -o sobrescreve arquivos existentes sem perguntar
-        if unzip -o "$tmp_dir/${font_name}.zip" -d "$user_fonts_dir"; then
-            log_info "Fontes extraídas para $user_fonts_dir."
-            log_info "Atualizando cache de fontes do sistema..."
-            fc-cache -fv
-            log_info "${font_name} Nerd Font instalada com sucesso."
-        else
-            log_error "Falha ao descompactar ${font_name}.zip."
-            return 1 # Adicionado para robustez
-        fi
-    else
-        log_error "Falha ao baixar ${font_name}.zip."
-        return 1 # Adicionado para robustez
-    fi
-}
-
-# 13. Instalar npm
-install_npm() {
-    log_info "Verificando e instalando npm (Node Package Manager)..."
-    if command -v npm &> /dev/null; then
-        log_info "npm já está instalado: $(npm --version)"
-    else
-        log_info "npm não encontrado. Instalando via dnf..."
-        if sudo dnf install -y npm; then
-            log_info "npm instalado com sucesso."
-        else
-            log_error "Falha ao instalar o npm via dnf. Verifique os logs."
-            return 1
-        fi
-    fi
-}
-
-# 14. Instalar aplicativos Flatpak (Apenas Bitwarden)
-install_flatpak_apps() {
-    log_info "Instalando aplicativos Flatpak selecionados..."
-    
-    local flatpaks_to_install=(
-        "com.bitwarden.desktop"
+    local base_url="https://github.com/romkatv/powerlevel10k-media/raw/master"
+    local fonts=(
+        "MesloLGS%20NF%20Regular.ttf"
+        "MesloLGS%20NF%20Bold.ttf"
+        "MesloLGS%20NF%20Italic.ttf"
+        "MesloLGS%20NF%20Bold%20Italic.ttf"
     )
 
-    for app_id in "${flatpaks_to_install[@]}"; do
-        log_info "Tentando instalar/atualizar $app_id via Flatpak..."
+    for font_file in "${fonts[@]}"; do
+        local decoded
+        decoded=$(printf '%b' "${font_file//%/\\x}")
+        if curl -LfsS "$base_url/$font_file" -o "$user_fonts_dir/$decoded"; then
+            log_info "Baixada: $decoded"
+        else
+            log_error "Falha ao baixar: $decoded"
+            return 1
+        fi
+    done
+
+    fc-cache -fv
+    log_info "Fonte $font_name instalada com sucesso."
+}
+
+# 13. Instalar aplicativos Flatpak (Bitwarden)
+install_flatpak_apps() {
+    log_info "Instalando aplicativos Flatpak..."
+    local flatpaks=("com.bitwarden.desktop")
+
+    for app_id in "${flatpaks[@]}"; do
         if flatpak list --app --columns=application | grep -q "^$app_id$"; then
             log_info "$app_id já está instalado. Pulando."
         elif flatpak install flathub "$app_id" -y; then
             log_info "$app_id instalado com sucesso."
         else
-            log_error "Falha ao instalar $app_id via Flatpak."
+            log_error "Falha ao instalar $app_id."
         fi
     done
 }
 
-# 15. Instalar Drivers da NVIDIA
+# 14. Instalar Drivers da NVIDIA
 install_nvidia_drivers() {
-    log_info "Verificando a presença de uma placa de vídeo NVIDIA..."
     if ! lspci | grep -qi "NVIDIA"; then
-        log_info "Nenhuma placa NVIDIA detectada. Pulando instalação dos drivers."
+        log_info "Nenhuma placa NVIDIA detectada. Pulando."
         return 0
     fi
 
-    log_warn "Placa NVIDIA detectada. Preparando para instalar os drivers proprietários."
-    
+    log_warn "Placa NVIDIA detectada. Instalando drivers proprietários..."
+
     log_info "Instalando repositórios RPM Fusion..."
     sudo dnf install -y \
         "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
         "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
-    
-    log_info "Sincronizando pacotes principais antes da instalação do driver..."
-    # A linha 'dnf group update core' foi substituída pelo 'dnf update' moderno.
+
     sudo dnf update -y
 
-    log_info "Instalando os drivers da NVIDIA (akmod-nvidia e suporte a CUDA)..."
-    if sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda; then
-        log_info "Pacotes de driver NVIDIA instalados com sucesso."
-    else
-        log_error "Falha ao instalar os pacotes do driver NVIDIA."
-        return 1
-    fi
+    log_info "Instalando drivers NVIDIA (akmod-nvidia + CUDA)..."
+    sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda || { log_error "Falha ao instalar drivers NVIDIA."; return 1; }
 
-    log_warn "Aguarde alguns minutos! O sistema está compilando o módulo do kernel."
-    log_warn "Uma reinicialização é NECESSÁRIA para carregar o novo driver."
-    log_warn "ATENÇÃO AO SECURE BOOT: Na próxima reinicialização, uma tela azul (MOK Manager) aparecerá."
-    log_warn "Você DEVE selecionar 'Enroll MOK', confirmar e inserir sua senha de usuário."
+    log_warn "Aguarde a compilação do módulo do kernel."
+    log_warn "Reinicialização NECESSÁRIA para carregar o driver."
+    log_warn "SECURE BOOT: Na próxima reinicialização, selecione 'Enroll MOK' e insira sua senha."
 }
 
-# 16. Instalar IntelliJ IDEA manualmente - NOVO
+# 15. Instalar IntelliJ IDEA Ultimate
 install_intellij_manual() {
     local install_dir="/opt"
-    log_info "Iniciando instalação manual do IntelliJ IDEA Ultimate..."
 
-    # Verifica se já existe uma instalação para evitar duplicação
     if compgen -G "${install_dir}/idea-IU-"* > /dev/null; then
-        log_info "Diretório de instalação do IntelliJ já encontrado em ${install_dir}. Pulando."
+        log_info "IntelliJ já encontrado em ${install_dir}. Pulando."
         return 0
     fi
 
-    # URL da API da JetBrains para obter a versão mais recente do IntelliJ Ultimate (IIU)
     local api_url="https://data.services.jetbrains.com/products/releases?code=IIU&latest=true&type=release"
-    
-    log_info "Buscando URL de download da versão mais recente..."
-    # Usa curl para buscar a API e jq para extrair o link de download do tar.gz para Linux
+    log_info "Buscando URL de download do IntelliJ IDEA..."
+
     local download_url
     download_url=$(curl -fsL "$api_url" | jq -r '.IIU[0].downloads.linux.link')
 
     if [ -z "$download_url" ] || [ "$download_url" == "null" ]; then
-        log_error "Não foi possível obter a URL de download do IntelliJ IDEA. Verifique a API da JetBrains ou sua conexão."
+        log_error "Não foi possível obter a URL de download do IntelliJ."
         return 1
     fi
 
-    log_info "URL encontrada: $download_url"
-    
     local tmp_dir
     tmp_dir=$(mktemp -d -t intellij-install-XXXXXX)
-    trap 'rm -rf -- "$tmp_dir"' RETURN # Limpa o diretório temporário ao sair da função
+    trap 'rm -rf -- "$tmp_dir"' RETURN
 
-    local file_path="$tmp_dir/idea.tar.gz"
+    log_info "Baixando IntelliJ de $download_url..."
+    curl -LfsS -o "$tmp_dir/idea.tar.gz" "$download_url" || { log_error "Falha ao baixar IntelliJ."; return 1; }
 
-    log_info "Baixando IntelliJ para ${file_path}..."
-    if ! curl -LfsS -o "$file_path" "$download_url"; then
-        log_error "Falha ao baixar o IntelliJ IDEA."
-        return 1
-    fi
+    log_info "Extraindo para ${install_dir}..."
+    sudo tar -xzf "$tmp_dir/idea.tar.gz" -C "$install_dir" || { log_error "Falha ao extrair IntelliJ."; return 1; }
 
-    log_info "Download concluído. Extraindo para ${install_dir}..."
-    # Extrai o conteúdo para /opt. Requer permissão de superusuário.
-    if sudo tar -xzf "$file_path" -C "$install_dir"; then
-        log_info "IntelliJ IDEA extraído com sucesso para ${install_dir}."
-    else
-        log_error "Falha ao extrair o IntelliJ IDEA. Verifique as permissões do diretório ${install_dir}."
-        return 1
-    fi
+    log_info "IntelliJ IDEA instalado em ${install_dir}."
 }
 
+# 16. Instalar Google Chrome
+install_google_chrome() {
+    if command -v google-chrome-stable &>/dev/null; then
+        log_info "Google Chrome já está instalado. Pulando."
+        return 0
+    fi
+
+    log_info "Instalando Google Chrome..."
+    sudo dnf install -y fedora-workstation-repositories
+    sudo dnf config-manager setopt google-chrome.enabled=1
+    sudo dnf install -y google-chrome-stable || { log_error "Falha ao instalar Google Chrome."; return 1; }
+    log_info "Google Chrome instalado com sucesso."
+}
+
+# 17. Instalar kubectl
+install_kubectl() {
+    if command -v kubectl &>/dev/null; then
+        log_info "kubectl já está instalado: $(kubectl version --client --short 2>/dev/null || kubectl version --client 2>/dev/null | head -1)"
+        return 0
+    fi
+
+    log_info "Instalando kubectl..."
+    cat <<'REPO' | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.34/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.34/rpm/repodata/repomd.xml.key
+REPO
+    sudo dnf install -y kubectl || { log_error "Falha ao instalar kubectl."; return 1; }
+    log_info "kubectl instalado com sucesso."
+}
+
+# 18. Instalar ripgrep
+install_ripgrep() {
+    if command -v rg &>/dev/null; then
+        log_info "ripgrep já está instalado. Pulando."
+        return 0
+    fi
+
+    log_info "Instalando ripgrep..."
+    sudo dnf install -y ripgrep || { log_error "Falha ao instalar ripgrep."; return 1; }
+}
+
+# 19. Instalar mise (gerenciador de runtimes)
+install_mise() {
+    if command -v mise &>/dev/null; then
+        log_info "mise já está instalado. Pulando."
+        return 0
+    fi
+
+    log_info "Instalando mise..."
+    curl https://mise.run | sh || { log_error "Falha ao instalar mise."; return 1; }
+
+    local zshrc="$HOME/.zshrc"
+    [ ! -f "$zshrc" ] && touch "$zshrc"
+    if ! grep -qF "mise activate" "$zshrc"; then
+        log_info "Adicionando mise ao .zshrc..."
+        {
+            echo ""
+            echo 'export PATH="$HOME/.local/bin:$PATH"'
+            echo 'eval "$(mise activate zsh)"'
+        } >> "$zshrc"
+    else
+        log_info "mise já configurado no .zshrc."
+    fi
+
+    log_info "mise instalado. Use 'mise use node@<version>' para instalar runtimes."
+}
 
 # --- Execução Principal ---
 main() {
     install_prerequisites_and_update
-    
+
     # Remoções
-    # remove_games # Descomente para executar
+    # remove_games  # Descomente para executar
     remove_gnome_apps
     remove_tmux
 
-    # Ambiente de Desenvolvimento e Terminal
+    # Ambiente de Shell e Terminal
     install_zsh_ohmyzsh
     install_kitty
     install_zellij
@@ -440,17 +413,22 @@ main() {
 
     # Drivers de Hardware
     install_nvidia_drivers
-    
-    # Ferramentas de Desenvolvimento Adicionais
+
+    # Ferramentas de Desenvolvimento
     install_sdkman
     install_maven
     install_podman_compose
-    install_npm
-    
+    install_mise
+
+    # Ferramentas CLI
+    install_ripgrep
+    install_kubectl
+
     # Fontes e Aplicativos GUI
-    install_codenewroman_font
-    install_flatpak_apps   # Instala o Bitwarden
-    install_intellij_manual # Instala o IntelliJ manualmente
+    install_meslo_font
+    install_flatpak_apps
+    install_intellij_manual
+    install_google_chrome
 
     echo ""
     echo "-------------------------------------------------------"
@@ -460,23 +438,18 @@ main() {
     echo "1. REINICIE O SISTEMA AGORA. Uma reinicialização é obrigatória para:"
     echo "   - Carregar o driver da NVIDIA recém-instalado (se aplicável)."
     echo "   - Ativar o Zsh como seu shell padrão."
-    echo "   - Carregar o SDKMAN! no novo shell."
+    echo "   - Carregar o SDKMAN! e mise no novo shell."
     echo "2. ATENÇÃO - SECURE BOOT: Se você usa Secure Boot e instalou os drivers NVIDIA,"
     echo "   após reiniciar, uma tela azul (MOK Management) aparecerá."
     echo "   -> Selecione 'Enroll MOK' -> 'Continue' -> Insira sua senha quando solicitado."
-    echo "   -> Se pular isso, sua sessão gráfica pode não iniciar!"
     echo ""
-    echo "Após a reinicialização bem-sucedida:"
-    echo " - IntelliJ IDEA: O executável foi instalado em um diretório dentro de /opt/."
-    echo "   Para executá-lo, encontre o script 'idea.sh' (ex: /opt/idea-IU-*/bin/idea.sh)."
-    echo "   Você pode criar um atalho (.desktop) para ele manualmente."
-    echo " - Abra o terminal Kitty e configure-o para usar a fonte 'CodeNewRoman Nerd Font'."
-    echo " - Inicie o Zellij com: zellij"
-    echo " - Abra o Neovim (nvim) para que o LazyVim finalize a configuração."
+    echo "Após a reinicialização:"
+    echo "  - Execute 'p10k configure' para configurar o Powerlevel10k."
+    echo "  - IntelliJ IDEA: executável em /opt/idea-IU-*/bin/idea.sh"
+    echo "  - Abra o Neovim (nvim) para que o LazyVim finalize a configuração."
+    echo "  - Execute o script finalizacao.sh para configurar o Kitty."
     echo "-------------------------------------------------------"
 }
 
-# Executar a função principal
 main
-
 exit 0

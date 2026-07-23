@@ -37,7 +37,7 @@ Para inspecionar as ações principais sem alterar a máquina:
 O padrão executa:
 
 ```text
-base,terminal,development,ai,nvidia,desktop
+base,terminal,development,ai,nvidia,desktop,maintenance
 ```
 
 Também é possível selecionar perfis:
@@ -56,8 +56,46 @@ Também é possível selecionar perfis:
 | `ai` | layout persistente e Claude, Kiro, Pi, Herdr e pi-web-access |
 | `nvidia` | RPM Fusion e driver NVIDIA, somente quando a GPU é detectada |
 | `desktop` | Chrome, Bitwarden, fontes e preferências GNOME |
+| `maintenance` | timers diários para Fedora e mise, autoremove e retenção de dois kernels |
 
 Para uma instalação parcial, recomenda-se incluir `base`, pois ele fornece os pré-requisitos comuns.
+
+## Manutenção automática
+
+O perfil `maintenance` instala dois timers independentes:
+
+```text
+fedora-maintenance.timer (sistema/root)
+├── dnf upgrade --refresh -y
+├── dnf remove --oldinstallonly --limit=2 -y
+└── dnf autoremove -y
+
+mise-maintenance.timer (usuário)
+├── mise self-update -y
+└── mise upgrade -y
+```
+
+O DNF recebe `installonly_limit=2`, mantendo o kernel atual e um fallback. O comando `--oldinstallonly` não remove o kernel em execução; temporariamente podem existir três versões até o próximo boot e a manutenção seguinte.
+
+O timer do Fedora só executa quando o computador está conectado à energia AC. Ambos são agendados diariamente para as 10h, com um pequeno atraso aleatório, e são persistentes: se a máquina estiver desligada nesse horário, executam depois que ela voltar a ficar disponível.
+
+Não habilite `dnf5-automatic.timer` ao mesmo tempo. O instalador desabilita timers DNF automáticos concorrentes se estiverem presentes.
+
+Consultas úteis:
+
+```bash
+systemctl list-timers fedora-maintenance.timer
+systemctl --user list-timers mise-maintenance.timer
+sudo journalctl -u fedora-maintenance.service
+journalctl --user -u mise-maintenance.service
+```
+
+Para executar manualmente:
+
+```bash
+sudo systemctl start fedora-maintenance.service
+systemctl --user start mise-maintenance.service
+```
 
 ## Layout dos agentes de IA
 

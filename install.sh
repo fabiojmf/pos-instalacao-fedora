@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 DRY_RUN=0
-PROFILES="base,terminal,development,ai,nvidia,desktop"
+PROFILES="base,terminal,development,ai,nvidia,desktop,maintenance"
 
 usage() {
   cat <<'EOF'
@@ -11,11 +11,12 @@ Uso: ./install.sh [opções]
 
 Opções:
   --profile LISTA   Perfis separados por vírgula.
-                    Disponíveis: base, terminal, development, ai, nvidia, desktop, all
+                    Disponíveis: base, terminal, development, ai, nvidia, desktop,
+                    maintenance, all
   --dry-run         Mostra as principais ações sem alterar o sistema.
   -h, --help        Exibe esta ajuda.
 
-Padrão: base,terminal,development,ai,nvidia,desktop
+Padrão: base,terminal,development,ai,nvidia,desktop,maintenance
 EOF
 }
 
@@ -37,6 +38,7 @@ source "$ROOT_DIR/lib/development.sh"
 source "$ROOT_DIR/lib/ai.sh"
 source "$ROOT_DIR/lib/nvidia.sh"
 source "$ROOT_DIR/lib/desktop.sh"
+source "$ROOT_DIR/lib/maintenance.sh"
 
 main() {
   require_fedora
@@ -60,6 +62,7 @@ main() {
   profile_enabled ai && install_ai_tools
   profile_enabled nvidia && install_nvidia_if_present
   profile_enabled desktop && configure_desktop
+  profile_enabled maintenance && install_maintenance_automation
 
   log_info "Instalação concluída."
   log_warn "Reabra o terminal para carregar Zsh, mise e SDKMAN."

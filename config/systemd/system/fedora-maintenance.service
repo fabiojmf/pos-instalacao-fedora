@@ -1,0 +1,12 @@
+[Unit]
+Description=Atualização e manutenção automática do Fedora
+Wants=network-online.target
+After=network-online.target
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fedora-maintenance
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

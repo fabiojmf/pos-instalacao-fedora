@@ -1,0 +1,10 @@
+[Unit]
+Description=Atualização do mise e das ferramentas gerenciadas por ele
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/mise self-update -y
+ExecStart=%h/.local/bin/mise upgrade -y
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=1h

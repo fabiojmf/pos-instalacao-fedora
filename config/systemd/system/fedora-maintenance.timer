@@ -1,0 +1,11 @@
+[Unit]
+Description=Executa diariamente a manutenção do Fedora
+
+[Timer]
+OnCalendar=*-*-* 10:00:00
+Persistent=true
+RandomizedDelaySec=10min
+Unit=fedora-maintenance.service
+
+[Install]
+WantedBy=timers.target

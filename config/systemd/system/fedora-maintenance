@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+exec 9>/run/fedora-maintenance.lock
+if ! flock -n 9; then
+  echo "Outra manutenção do Fedora já está em execução."
+  exit 0
+fi
+
+echo "== $(date --iso-8601=seconds): atualizando o Fedora =="
+dnf upgrade --refresh -y
+
+echo "== Mantendo no máximo dois kernels, sem remover o kernel em execução =="
+dnf remove --oldinstallonly --limit=2 -y
+
+echo "== Removendo dependências não utilizadas =="
+dnf autoremove -y
+
+echo "== $(date --iso-8601=seconds): manutenção concluída =="

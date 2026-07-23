@@ -1,0 +1,11 @@
+[Unit]
+Description=Executa diariamente a atualização do mise
+
+[Timer]
+OnCalendar=*-*-* 10:00:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=mise-maintenance.service
+
+[Install]
+WantedBy=timers.target

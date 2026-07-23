@@ -1,0 +1,8 @@
+{
+  "autoUpdatesChannel": "latest",
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "model": "opus",
+  "theme": "dark"
+}

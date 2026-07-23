@@ -1,0 +1,10 @@
+# Credenciais e configurações locais
+endpoints.zsh
+*.local
+.env
+
+# Artefatos
+auth.json
+sessions/
+node_modules/
+*.log

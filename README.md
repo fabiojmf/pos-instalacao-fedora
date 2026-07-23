@@ -1,120 +1,187 @@
-# Scripts de Configuração Pós-Instalação do Fedora
+# Pós-instalação do Fedora
 
-Este repositório contém scripts para automatizar a configuração de um ambiente de desenvolvimento (foco em **JAVA**) e personalização em uma instalação recente do Fedora Workstation.
+Configuração pessoal e idempotente para uma instalação nova do Fedora Workstation. O projeto instala o ambiente de terminal, desenvolvimento e agentes de IA utilizado por Fabio.
 
-**AVISO:** Estes scripts realizam alterações significativas no sistema, incluindo a instalação e remoção de pacotes, e a modificação de arquivos de configuração. Execute-os por sua conta e risco. Revise os scripts cuidadosamente antes de executá-los.
+> Revise o código antes de executar. O perfil padrão atualiza o sistema, remove aplicativos e instala drivers e ferramentas.
 
-## Visão Geral
+## Principais escolhas
 
-O processo é dividido em dois scripts:
-1. **`pos-instalacao.sh`**: Script principal — instalação de software, drivers, ferramentas de desenvolvimento e configuração do sistema.
-2. **`finalizacao.sh`**: Script secundário — configuração do terminal Kitty. **Deve ser executado APÓS o `pos-instalacao.sh` e uma reinicialização completa.**
+- **Terminal:** WezTerm nightly, sem Kitty ou Zellij.
+- **Shell:** Zsh, Oh My Zsh, Powerlevel10k, autosuggestions e syntax highlighting.
+- **Node:** somente pelo mise; pacotes Node/npm em RPM são removidos.
+- **Java:** o Java gerenciado pelo Fedora não é alterado. O script instala apenas o SDKMAN; versões adicionais são escolhidas manualmente.
+- **Agentes:** Claude Code, Kiro CLI, Pi e Herdr são gerenciados pelo mise.
+- **Segredos:** URLs corporativas, deployments, chaves e tokens nunca fazem parte do repositório.
+- **LibreOffice:** removido.
+- **PJeOffice:** não é instalado.
 
-## Script 1: `pos-instalacao.sh`
+Não existe mais `finalizacao.sh`: a configuração do WezTerm é aplicada pelo instalador principal e não exige reinicialização.
 
-### O que este script faz?
-
-* **Pré-requisitos e Atualização do Sistema:**
-  * Instala dependências básicas (`curl`, `git`, `util-linux-user`, `unzip`, `tar`, `flatpak`, `jq`).
-  * Atualiza todos os pacotes do sistema.
-  * Configura o repositório Flathub para Flatpak.
-
-* **Limpeza do Sistema:**
-  * Remove jogos do GNOME (descomente na função `main` para ativar).
-  * Remove aplicativos padrão do GNOME (Contatos, Mapas, Clima, Boxes, Simple Scan, Totem, Rhythmbox, Tour, Caracteres, Connections, Evince, Loupe, Logs, ABRT, Monitor do Sistema, Relógios, Calendário, Câmera).
-  * Remove o LibreOffice.
-  * Remove `tmux` (se instalado).
-
-* **Ambiente de Shell e Terminal:**
-  * Instala `Zsh` e `Oh My Zsh`.
-  * Instala o tema `Powerlevel10k` para o Zsh.
-  * Configura Zsh como shell padrão.
-  * Instala o emulador de terminal `Kitty`.
-  * Instala o multiplexador de terminal `Zellij` (última versão do GitHub).
-
-* **Drivers de Hardware:**
-  * Detecta e instala os drivers proprietários da **NVIDIA** (se detectada), incluindo suporte a CUDA.
-
-* **Ferramentas de Desenvolvimento:**
-  * Instala `Neovim` com `LazyVim` starter.
-  * Instala o grupo `Development Tools` (gcc, make, etc.).
-  * Instala `SDKMAN!` para gerenciamento de SDKs Java.
-  * Instala `Maven` via dnf.
-  * Instala `podman-compose` via dnf.
-  * Instala `mise` — gerenciador de runtimes (Node, Python, etc.).
-
-* **Ferramentas CLI:**
-  * Instala `ripgrep` (busca rápida em arquivos).
-  * Instala `kubectl` (cliente Kubernetes).
-
-* **Fontes e Aplicativos:**
-  * Instala a fonte `MesloLGS NF` (recomendada pelo Powerlevel10k).
-  * Instala `Bitwarden Desktop` via Flatpak.
-  * Instala `Google Chrome` via repositório oficial.
-  * Instala o `IntelliJ IDEA Ultimate` (última versão da API JetBrains).
-
-### Como Usar
+## Uso
 
 ```bash
-chmod +x pos-instalacao.sh
-./pos-instalacao.sh
+git clone https://github.com/fabiojmf/pos-instalacao-fedora.git
+cd pos-instalacao-fedora
+chmod +x install.sh
+./install.sh
 ```
 
-### Pós-Execução (Passos Críticos!)
-
-1. **REINICIE O SISTEMA IMEDIATAMENTE:**
-   * Carregar o driver da NVIDIA (se aplicável).
-   * Ativar o Zsh como shell padrão.
-   * Carregar o SDKMAN! e mise no novo shell.
-
-2. **ATENÇÃO AO SECURE BOOT (SE INSTALOU DRIVERS NVIDIA):**
-   * Após reiniciar, uma tela azul **MOK Management** aparecerá.
-   * Selecione **"Enroll MOK"** → "Continue" → insira sua senha.
-   * Se pular este passo, sua sessão gráfica pode não iniciar!
-
-3. **Após a reinicialização:**
-   * Execute `p10k configure` para configurar o Powerlevel10k.
-   * IntelliJ IDEA: executável em `/opt/idea-IU-*/bin/idea.sh`.
-   * Abra o Neovim (`nvim`) para que o LazyVim finalize a instalação dos plugins.
-   * Use `mise use node@<version>` para instalar o Node.js.
-   * Prossiga para o script `finalizacao.sh`.
-
-## Script 2: `finalizacao.sh`
-
-### O que este script faz?
-
-* **Configuração do Kitty:**
-  * Cria `~/.config/kitty/kitty.conf` com:
-    * Tema Gruvbox Dark Hard.
-    * Fonte `MesloLGS NF` (tamanho 11).
-    * Opacidade, cursor, layout de janelas, abas e atalhos.
-  * Cria o arquivo de tema `~/.config/kitty/GruvBox_DarkHard.conf`.
-
-* **Aviso sobre o GNOME Terminal:**
-  * Verifica se está instalado e avisa sobre os riscos de removê-lo.
-
-### Como Usar
+Para inspecionar as ações principais sem alterar a máquina:
 
 ```bash
-chmod +x finalizacao.sh
-./finalizacao.sh
+./install.sh --dry-run
 ```
 
-### Pós-Execução
+### Perfis
 
-1. Feche e reabra o Kitty para aplicar as configurações.
-2. Verifique seu ambiente:
-   * **Kitty:** tema Gruvbox e fonte MesloLGS NF.
-   * **Neovim:** abra `nvim` para finalizar plugins do LazyVim.
-   * **SDKMAN!:** `sdk version`
-   * **mise:** `mise ls`
-   * **Zellij:** `zellij`
+O padrão executa:
 
-## Solução de Problemas
+```text
+base,terminal,development,ai,nvidia,desktop
+```
 
-* **Falha em `dnf`:** Verifique conexão com a internet e repositórios.
-* **Falha no download (Zellij, IntelliJ):** Verifique URLs e conexão. APIs podem mudar.
-* **Tela preta após reboot:** Se instalou NVIDIA, provavelmente pulou o "Enroll MOK". Reinicie e preste atenção à tela azul.
-* **Zsh não é o shell padrão:** Verifique se `chsh` foi executado. Reinicialização resolve.
-* **SDKMAN! não encontrado:** Verifique as linhas no `.zshrc` e reinicie o terminal.
-* **mise não encontrado:** Verifique se `$HOME/.local/bin` está no PATH e se `eval "$(mise activate zsh)"` está no `.zshrc`.
+Também é possível selecionar perfis:
+
+```bash
+./install.sh --profile base,terminal,development
+./install.sh --profile base,ai
+./install.sh --profile all
+```
+
+| Perfil | Conteúdo |
+|---|---|
+| `base` | atualização, Flathub, remoções, Zsh, SDKMAN, mise e Node LTS |
+| `terminal` | WezTerm nightly e JetBrains Mono |
+| `development` | ferramentas de compilação, Neovim/LazyVim, Maven, Podman Compose, kubectl, IntelliJ e DBeaver |
+| `ai` | layout persistente e Claude, Kiro, Pi, Herdr e pi-web-access |
+| `nvidia` | RPM Fusion e driver NVIDIA, somente quando a GPU é detectada |
+| `desktop` | Chrome, Bitwarden, fontes e preferências GNOME |
+
+Para uma instalação parcial, recomenda-se incluir `base`, pois ele fornece os pré-requisitos comuns.
+
+## Layout dos agentes de IA
+
+O instalador cria:
+
+```text
+~/.local/share/ai-agents/
+├── claude/
+├── kiro/
+└── pi/
+    └── agent/
+```
+
+E os links:
+
+```text
+~/.kiro -> ~/.local/share/ai-agents/kiro
+~/.pi   -> ~/.local/share/ai-agents/pi
+```
+
+O Claude usa `CLAUDE_CONFIG_DIR`; Kiro usa `KIRO_HOME`. Históricos, sessões, autenticação e caches permanecem locais e não são versionados.
+
+### Ferramentas gerenciadas pelo mise
+
+A configuração global resultante contém, em essência:
+
+```toml
+[tools]
+node = "lts"
+claude = "latest"
+kiro-cli = "latest"
+"github:ogulcancelik/herdr" = "latest"
+"npm:@earendil-works/pi-coding-agent" = "latest"
+```
+
+Atualize essas ferramentas exclusivamente pelo mise:
+
+```bash
+mise outdated
+mise upgrade
+```
+
+Não use `claude update`, `kiro-cli update` ou `herdr update` para instalações controladas pelo mise. O auto-updater do Claude é desabilitado no template inicial.
+
+O pacote adicional do Pi é instalado pelo próprio Pi:
+
+```bash
+pi install npm:pi-web-access
+```
+
+As integrações de estado são instaladas pelo Herdr:
+
+```bash
+herdr integration install claude
+herdr integration install pi
+```
+
+## Endpoints e credenciais
+
+O repositório contém somente:
+
+```text
+config/ai-agents/endpoints.zsh.example
+```
+
+Na primeira instalação ele é copiado, vazio, para:
+
+```text
+~/.config/ai-agents/endpoints.zsh
+```
+
+O arquivo recebe permissão `0600`. Preencha-o manualmente e nunca o envie ao GitHub.
+
+Depois da instalação, autentique manualmente as ferramentas que utilizar:
+
+```bash
+claude
+kiro-cli
+pi
+```
+
+## Java e SDKMAN
+
+O instalador não instala, remove, registra ou seleciona nenhuma versão Java. O Maven instalado pelo Fedora pode trazer uma dependência OpenJDK, que permanece sob controle do DNF.
+
+Para adicionar versões por conta própria:
+
+```bash
+sdk list java
+sdk install java <identificador>
+sdk default java <identificador>
+```
+
+## Configurações versionadas
+
+```text
+config/
+├── ai-agents/endpoints.zsh.example
+├── claude/settings.json
+├── pi/settings.json
+├── wezterm/wezterm.lua
+└── zsh/
+    ├── p10k.zsh
+    └── zshrc
+```
+
+Ao substituir uma configuração gerenciada existente, o instalador cria um backup com timestamp. Configurações e credenciais dos agentes já existentes são preservadas.
+
+## NVIDIA e Secure Boot
+
+O perfil `nvidia` só age quando `lspci` encontra uma GPU NVIDIA. Após instalar `akmod-nvidia`, aguarde a compilação do módulo antes de reiniciar.
+
+Quando Secure Boot estiver ativo, siga as instruções locais em:
+
+```text
+/usr/share/doc/akmods/README.secureboot
+```
+
+O script não presume que uma tela de enrollment MOK aparecerá automaticamente.
+
+## Pós-instalação
+
+1. Feche e abra o terminal para carregar Zsh, mise e SDKMAN.
+2. Preencha `~/.config/ai-agents/endpoints.zsh`, se necessário.
+3. Autentique Claude, Kiro e Pi manualmente.
+4. Instale as versões Java desejadas pelo SDKMAN.
+5. Reinicie apenas se houve instalação de driver NVIDIA/kernel ou se desejar aplicar imediatamente a troca do shell padrão.

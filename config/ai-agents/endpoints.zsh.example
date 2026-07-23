@@ -1,0 +1,18 @@
+# Copie/preencha manualmente em ~/.config/ai-agents/endpoints.zsh.
+# O instalador cria esse arquivo com permissão 0600.
+# Nunca versione URLs, deployments, tokens ou chaves reais.
+
+# Claude Code / Microsoft Foundry
+# export CLAUDE_CODE_USE_FOUNDRY=""
+# export ANTHROPIC_FOUNDRY_BASE_URL=""
+# export ANTHROPIC_FOUNDRY_API_KEY=""
+# export ANTHROPIC_MODEL=""
+# export ANTHROPIC_DEFAULT_HAIKU_MODEL=""
+# export ANTHROPIC_DEFAULT_SONNET_MODEL=""
+# export ANTHROPIC_DEFAULT_OPUS_MODEL=""
+
+# Pi / Azure OpenAI
+# export AZURE_OPENAI_API_KEY=""
+# export AZURE_OPENAI_BASE_URL=""
+# export AZURE_OPENAI_API_VERSION=""
+# export AZURE_OPENAI_DEPLOYMENT_NAME_MAP=""

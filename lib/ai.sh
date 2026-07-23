@@ -24,15 +24,15 @@ install_ai_tools() {
 }
 
 install_ai_mise_tools() {
-  log_info "Instalando Claude Code, Kiro CLI, Pi e Herdr pelo mise..."
+  log_info "Instalando Claude Code, Pi e Herdr pelo mise..."
   if (( DRY_RUN )); then
-    log_info "Executaria mise use --global para claude, kiro-cli, Pi e Herdr."
+    log_info "Executaria mise use --global para Claude Code, Pi e Herdr."
     return 0
   fi
 
   local exclusions tool
   exclusions=$(mise_cmd settings get minimum_release_age_excludes 2>/dev/null || printf '[]')
-  for tool in 'github:ogulcancelik/herdr' 'npm:@earendil-works/pi-coding-agent'; do
+  for tool in 'claude-code' 'github:ogulcancelik/herdr' 'npm:@earendil-works/pi-coding-agent'; do
     if ! grep -qF "\"$tool\"" <<<"$exclusions"; then
       mise_cmd settings add minimum_release_age_excludes "$tool"
       exclusions=$(mise_cmd settings get minimum_release_age_excludes 2>/dev/null || printf '[]')
@@ -40,8 +40,7 @@ install_ai_mise_tools() {
   done
 
   mise_cmd use --global --yes \
-    claude@latest \
-    kiro-cli@latest \
+    claude-code@latest \
     'github:ogulcancelik/herdr@latest' \
     'npm:@earendil-works/pi-coding-agent@latest'
 }

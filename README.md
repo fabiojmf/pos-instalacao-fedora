@@ -10,7 +10,7 @@ Configuração pessoal e idempotente para uma instalação nova do Fedora Workst
 - **Shell:** Zsh, Oh My Zsh, Powerlevel10k, autosuggestions e syntax highlighting.
 - **Node:** somente pelo mise; pacotes Node/npm em RPM são removidos.
 - **Java:** o Java gerenciado pelo Fedora não é alterado. O script instala apenas o SDKMAN; versões adicionais são escolhidas manualmente.
-- **Agentes:** Claude Code, Kiro CLI, Pi e Herdr são gerenciados pelo mise.
+- **Agentes:** Claude Code, Pi e Herdr são gerenciados pelo mise; Kiro CLI é instalado e atualizado manualmente.
 - **Segredos:** URLs corporativas, deployments, chaves e tokens nunca fazem parte do repositório.
 - **LibreOffice:** removido.
 - **PJeOffice:** não é instalado.
@@ -53,7 +53,7 @@ Também é possível selecionar perfis:
 | `base` | atualização, Flathub, remoções, Zsh, SDKMAN, mise e Node LTS |
 | `terminal` | WezTerm nightly e JetBrains Mono |
 | `development` | ferramentas de compilação, Neovim/LazyVim, Maven, Podman Compose, kubectl, IntelliJ e DBeaver |
-| `ai` | layout persistente e Claude, Kiro, Pi, Herdr e pi-web-access |
+| `ai` | layout persistente, Claude, Pi, Herdr e pi-web-access; prepara o diretório do Kiro sem instalá-lo |
 | `nvidia` | RPM Fusion e driver NVIDIA, somente quando a GPU é detectada |
 | `desktop` | Chrome, Bitwarden, fontes e preferências GNOME |
 | `maintenance` | timers diários para Fedora e mise, autoremove e retenção de dois kernels |
@@ -116,7 +116,7 @@ E os links:
 ~/.pi   -> ~/.local/share/ai-agents/pi
 ```
 
-O Claude usa `CLAUDE_CONFIG_DIR`; Kiro usa `KIRO_HOME`. Históricos, sessões, autenticação e caches permanecem locais e não são versionados.
+O Claude usa `CLAUDE_CONFIG_DIR`; Kiro usa `KIRO_HOME`. Históricos, sessões, autenticação e caches permanecem locais e não são versionados. O diretório e o link do Kiro são preparados para preservar o layout personalizado, mas o binário não é instalado pelo script.
 
 ### Ferramentas gerenciadas pelo mise
 
@@ -125,8 +125,7 @@ A configuração global resultante contém, em essência:
 ```toml
 [tools]
 node = "lts"
-claude = "latest"
-kiro-cli = "latest"
+claude-code = "latest"
 "github:ogulcancelik/herdr" = "latest"
 "npm:@earendil-works/pi-coding-agent" = "latest"
 ```
@@ -138,7 +137,17 @@ mise outdated
 mise upgrade
 ```
 
-Não use `claude update`, `kiro-cli update` ou `herdr update` para instalações controladas pelo mise. O auto-updater do Claude é desabilitado no template inicial.
+Não use `claude update` ou `herdr update` para instalações controladas pelo mise. O auto-updater do Claude é desabilitado no template inicial.
+
+### Kiro CLI
+
+O Kiro CLI não é baixado, instalado ou atualizado por este projeto. Sua instalação é manual, usando o método oficial escolhido pelo usuário. O script apenas prepara `KIRO_HOME`, o link `~/.kiro` e carregamentos condicionais da integração de shell; eles não causam erro quando o Kiro está ausente.
+
+Depois de instalado manualmente, o Kiro continua usando seu próprio mecanismo de atualização:
+
+```bash
+kiro-cli update
+```
 
 O pacote adicional do Pi é instalado pelo próprio Pi:
 
@@ -169,13 +178,14 @@ Na primeira instalação ele é copiado, vazio, para:
 
 O arquivo recebe permissão `0600`. Preencha-o manualmente e nunca o envie ao GitHub.
 
-Depois da instalação, autentique manualmente as ferramentas que utilizar:
+Depois da instalação, autentique manualmente Claude e Pi:
 
 ```bash
 claude
-kiro-cli
 pi
 ```
+
+A instalação e autenticação do Kiro são etapas manuais independentes deste projeto.
 
 ## Java e SDKMAN
 
@@ -220,6 +230,6 @@ O script não presume que uma tela de enrollment MOK aparecerá automaticamente.
 
 1. Feche e abra o terminal para carregar Zsh, mise e SDKMAN.
 2. Preencha `~/.config/ai-agents/endpoints.zsh`, se necessário.
-3. Autentique Claude, Kiro e Pi manualmente.
+3. Autentique Claude e Pi manualmente; instale e configure o Kiro separadamente, se desejar.
 4. Instale as versões Java desejadas pelo SDKMAN.
 5. Reinicie apenas se houve instalação de driver NVIDIA/kernel ou se desejar aplicar imediatamente a troca do shell padrão.

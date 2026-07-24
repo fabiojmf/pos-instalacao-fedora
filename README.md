@@ -79,6 +79,8 @@ O DNF recebe `installonly_limit=2`, mantendo o kernel atual e um fallback. O com
 
 O timer do Fedora só executa quando o computador está conectado à energia AC. Ambos são agendados diariamente para as 10h, com um pequeno atraso aleatório, e são persistentes: se a máquina estiver desligada nesse horário, executam depois que ela voltar a ficar disponível.
 
+O perfil também configura o `systemd-journald` para reter logs por no máximo dois dias. Essa retenção é global: vale para o sistema inteiro, inclusive para os logs dos serviços de manutenção. Na instalação, o journal é rotacionado e os arquivos anteriores ao período são removidos imediatamente.
+
 Não habilite `dnf5-automatic.timer` ao mesmo tempo. O instalador desabilita timers DNF automáticos concorrentes se estiverem presentes.
 
 Consultas úteis:

@@ -3,6 +3,7 @@
 install_maintenance_automation() {
   log_info "Configurando manutenção automática do Fedora e do mise..."
   configure_installonly_limit
+  configure_journal_retention
   install_system_maintenance
   install_user_maintenance
 }
@@ -26,6 +27,26 @@ configure_installonly_limit() {
   else
     printf '\n[main]\ninstallonly_limit=2\n' | sudo tee -a "$config" >/dev/null
   fi
+}
+
+configure_journal_retention() {
+  local source="$ROOT_DIR/config/systemd/journald.conf.d/90-log-retention.conf"
+  local destination=/etc/systemd/journald.conf.d/90-log-retention.conf
+  local config_changed=1
+
+  if [[ -f $destination ]] && cmp -s "$source" "$destination"; then
+    config_changed=0
+    log_info "Retenção do journal já está configurada para dois dias."
+  else
+    run sudo install -D -m 0644 "$source" "$destination"
+  fi
+
+  if (( config_changed )); then
+    run sudo systemctl restart systemd-journald.service
+  fi
+
+  # A rotação torna o arquivo ativo elegível para a limpeza imediata.
+  run sudo journalctl --rotate --vacuum-time=2days
 }
 
 install_system_maintenance() {

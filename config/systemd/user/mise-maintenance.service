@@ -5,6 +5,7 @@ Description=Atualização do mise e das ferramentas gerenciadas por ele
 Type=oneshot
 ExecStart=%h/.local/bin/mise self-update -y
 ExecStart=%h/.local/bin/mise upgrade -y
+ExecStart=%h/.local/bin/mise prune --yes --tools
 Nice=10
 IOSchedulingClass=idle
 TimeoutStartSec=1h

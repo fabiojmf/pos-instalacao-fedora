@@ -10,7 +10,7 @@ install_development() {
 
 install_development_packages() {
   log_info "Instalando ferramentas de desenvolvimento..."
-  run sudo dnf install -y @development-tools neovim python3-neovim maven podman-compose ripgrep
+  run sudo dnf install -y @development-tools neovim python3-neovim maven ripgrep
 }
 
 install_neovim() {
@@ -61,12 +61,30 @@ install_intellij() {
   fi
 
   local api='https://data.services.jetbrains.com/products/releases?code=IIU&latest=true&type=release'
-  local url tmp
-  url=$(curl -fsSL "$api" | jq -r '.IIU[0].downloads.linux.link')
+  local metadata url checksum_url expected_checksum tmp archive
+  metadata=$(curl -fsSL "$api")
+  url=$(jq -r '.IIU[0].downloads.linux.link' <<<"$metadata")
+  checksum_url=$(jq -r '.IIU[0].downloads.linux.checksumLink' <<<"$metadata")
   [[ -n $url && $url != null ]] || die "A API da JetBrains não retornou o download do IntelliJ."
+  [[ -n $checksum_url && $checksum_url != null ]] || die "A API da JetBrains não retornou o checksum do IntelliJ."
+
   tmp=$(mktemp -d)
-  curl -fL "$url" -o "$tmp/idea.tar.gz"
-  sudo tar -xzf "$tmp/idea.tar.gz" -C /opt
+  archive=$tmp/idea.tar.gz
+  curl -fL "$url" -o "$archive" || { rm -rf "$tmp"; die "Falha no download do IntelliJ."; }
+  expected_checksum=$(curl -fsSL "$checksum_url" | awk '{print $1}') || {
+    rm -rf "$tmp"
+    die "Falha ao obter o checksum do IntelliJ."
+  }
+  [[ $expected_checksum =~ ^[[:xdigit:]]{64}$ ]] || {
+    rm -rf "$tmp"
+    die "Checksum inválido retornado pela JetBrains."
+  }
+  printf '%s  %s\n' "$expected_checksum" "$archive" | sha256sum --check --status || {
+    rm -rf "$tmp"
+    die "O download do IntelliJ não corresponde ao checksum oficial."
+  }
+
+  sudo tar -xzf "$archive" -C /opt || { rm -rf "$tmp"; die "Falha ao extrair o IntelliJ."; }
   rm -rf "$tmp"
   create_intellij_launcher
 }

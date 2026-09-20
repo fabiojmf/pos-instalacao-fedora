@@ -17,6 +17,45 @@ run() {
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+resolve_profiles() {
+  local preset_profiles=''
+  case "$PRESET" in
+    '')
+      if [[ -z $PROFILE_ARGS ]]; then
+        PRESET=host
+        preset_profiles='base,cleanup,shell,terminal,desktop,browser,personal,containers,virtualization,nvidia,maintenance'
+      fi
+      ;;
+    host)
+      preset_profiles='base,cleanup,shell,terminal,desktop,browser,personal,containers,virtualization,nvidia,maintenance'
+      ;;
+    work-vm)
+      preset_profiles='base,cleanup,shell,terminal,desktop,browser,toolchains,containers,development,ai,vm-guest,maintenance'
+      ;;
+    standalone)
+      preset_profiles='base,cleanup,shell,terminal,desktop,browser,personal,toolchains,containers,development,ai,nvidia,maintenance'
+      ;;
+    *) die "Preset desconhecido: $PRESET" ;;
+  esac
+
+  PROFILES="${preset_profiles}${preset_profiles:+${PROFILE_ARGS:+,}}${PROFILE_ARGS}"
+}
+
+validate_profiles() {
+  local profile
+  local -a requested
+  IFS=',' read -ra requested <<<"$PROFILES"
+  ((${#requested[@]})) || die "Informe ao menos um perfil ou preset."
+
+  for profile in "${requested[@]}"; do
+    case "$profile" in
+      base|cleanup|shell|terminal|desktop|browser|personal|toolchains|containers|development|ai|virtualization|vm-guest|nvidia|maintenance|all) ;;
+      '') die "A lista de perfis contém um item vazio." ;;
+      *) die "Perfil desconhecido: $profile" ;;
+    esac
+  done
+}
+
 require_fedora() {
   [[ -r /etc/os-release ]] || die "Não foi possível identificar o sistema operacional."
   # shellcheck disable=SC1091
@@ -37,7 +76,8 @@ profile_enabled() {
 backup_file() {
   local path=$1
   [[ -e $path || -L $path ]] || return 0
-  local backup="${path}.backup.$(date +%Y%m%d-%H%M%S)"
+  local backup
+  backup="${path}.backup.$(date +%Y%m%d-%H%M%S)"
   run cp -a -- "$path" "$backup"
   log_warn "Backup criado: $backup"
 }

@@ -31,14 +31,3 @@ remove_unwanted_apps() {
   mapfile -t installed < <(rpm -qa --qf '%{NAME}\n' | grep -E '^(libreoffice|libobasis)' | sort -u || true)
   ((${#installed[@]})) && run sudo dnf remove -y "${installed[@]}"
 }
-
-remove_fedora_node() {
-  log_info "Garantindo que Node/npm não sejam gerenciados por RPM..."
-  local packages=()
-  mapfile -t packages < <(rpm -qa --qf '%{NAME}\n' | grep -E '^(nodejs($|-)|npm$)' | sort -u || true)
-  if ((${#packages[@]})); then
-    run sudo dnf remove -y "${packages[@]}"
-  else
-    log_info "Nenhum Node/npm do Fedora instalado."
-  fi
-}

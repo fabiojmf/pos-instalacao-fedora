@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 install_ai_tools() {
+  if ! profile_enabled toolchains && ! command_exists mise && [[ ! -x $HOME/.local/bin/mise ]]; then
+    die "O perfil ai requer mise. Inclua o perfil toolchains ou use o preset work-vm/standalone."
+  fi
+
   log_info "Configurando diretórios persistentes dos agentes de IA..."
   local agents_home=$HOME/.local/share/ai-agents
   export AI_AGENTS_HOME=$agents_home
@@ -17,6 +21,10 @@ install_ai_tools() {
     "$CLAUDE_CONFIG_DIR/settings.json" 0644
   install_if_missing "$ROOT_DIR/config/pi/settings.json" \
     "$agents_home/pi/agent/settings.json" 0644
+  install_config "$ROOT_DIR/config/zsh/pre.d/50-ai-agents.zsh" \
+    "$HOME/.config/zsh/pre.d/50-ai-agents.zsh" 0644
+  install_config "$ROOT_DIR/config/zsh/post.d/99-kiro.zsh" \
+    "$HOME/.config/zsh/post.d/99-kiro.zsh" 0644
 
   install_ai_mise_tools
   install_pi_packages

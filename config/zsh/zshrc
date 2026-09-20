@@ -1,17 +1,12 @@
-# Kiro CLI pre block. Mantido no topo quando a integração estiver disponível.
-[[ -f "${HOME}/.local/share/kiro-cli/shell/zshrc.pre.zsh" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/zshrc.pre.zsh"
+# Fragmentos opcionais instalados pelos perfis devem carregar antes do prompt.
+for fragment in "${XDG_CONFIG_HOME:-$HOME/.config}"/zsh/pre.d/*.zsh(N); do
+  source "$fragment"
+done
+unset fragment
 
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
-
-export AI_AGENTS_HOME="$HOME/.local/share/ai-agents"
-export CLAUDE_CONFIG_DIR="$AI_AGENTS_HOME/claude"
-export KIRO_HOME="$AI_AGENTS_HOME/kiro"
-export npm_config_cache="${XDG_CACHE_HOME:-$HOME/.cache}/npm"
-
-# Arquivo privado preenchido manualmente; nunca deve ser versionado.
-[[ -r "$HOME/.config/ai-agents/endpoints.zsh" ]] && source "$HOME/.config/ai-agents/endpoints.zsh"
 
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
@@ -22,17 +17,14 @@ source "$ZSH/oh-my-zsh.sh"
 typeset -U path PATH
 path=("$HOME/.local/bin" $path)
 
-command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
-
-# O script instala apenas o SDKMAN. A escolha e instalação de Javas é manual.
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
-
 ZSH_HIGHLIGHT_STYLES[path]=none
 ZSH_HIGHLIGHT_STYLES[path_prefix]=none
 ZSH_HIGHLIGHT_STYLES[precommand]='fg=green'
 
 [[ ! -f "$HOME/.p10k.zsh" ]] || source "$HOME/.p10k.zsh"
 
-# Kiro CLI post block.
-[[ -f "${HOME}/.local/share/kiro-cli/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/zshrc.post.zsh"
+# Fragmentos opcionais instalados pelos perfis carregam por último.
+for fragment in "${XDG_CONFIG_HOME:-$HOME/.config}"/zsh/post.d/*.zsh(N); do
+  source "$fragment"
+done
+unset fragment

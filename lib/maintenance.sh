@@ -5,7 +5,12 @@ install_maintenance_automation() {
   configure_installonly_limit
   configure_journal_retention
   install_system_maintenance
-  install_user_maintenance
+
+  if profile_enabled toolchains || command_exists mise || [[ -x $HOME/.local/bin/mise ]]; then
+    install_user_maintenance
+  else
+    log_info "mise não está instalado; manutenção de ferramentas do usuário não será habilitada."
+  fi
 }
 
 configure_installonly_limit() {

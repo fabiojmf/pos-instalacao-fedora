@@ -6,10 +6,11 @@ Configuração pessoal e idempotente para uma instalação nova do Fedora Workst
 
 ## Principais escolhas
 
-- **Terminal:** WezTerm nightly, sem Kitty ou Zellij.
-- **Shell:** Zsh, Oh My Zsh, Powerlevel10k, autosuggestions e syntax highlighting.
-- **Node:** somente pelo mise; pacotes Node/npm em RPM são removidos.
-- **Java:** o Java gerenciado pelo Fedora não é alterado. O script instala apenas o SDKMAN; versões adicionais são escolhidas manualmente.
+- **Terminal:** WezTerm nightly, Zsh, Oh My Zsh, Powerlevel10k e plugins, separados entre os perfis `terminal` e `shell`.
+- **Node:** somente pelo mise; pacotes Node/npm em RPM são removidos pelo perfil `toolchains`.
+- **Containers:** Podman e Podman Compose ficam em um perfil independente, utilizável tanto no host quanto na VM.
+- **Virtualização:** KVM, libvirt e virt-manager ficam em um perfil exclusivo do host.
+- **Java:** o Java gerenciado pelo Fedora não é alterado. O perfil `toolchains` instala apenas o SDKMAN; versões adicionais são escolhidas manualmente.
 - **Agentes:** Claude Code, Pi e Herdr são gerenciados pelo mise; Kiro CLI é instalado e atualizado manualmente.
 - **Segredos:** URLs corporativas, deployments, chaves e tokens nunca fazem parte do repositório.
 - **LibreOffice:** removido.
@@ -26,39 +27,59 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Para inspecionar as ações principais sem alterar a máquina:
+Sem argumentos, o instalador usa o preset `host`. Para inspecionar as ações sem alterar a máquina:
 
 ```bash
 ./install.sh --dry-run
+./install.sh --preset work-vm --dry-run
+```
+
+### Presets
+
+| Preset | Finalidade | Perfis |
+|---|---|---|
+| `host` | Host pessoal com Podman e KVM, sem ferramentas corporativas | `base,cleanup,shell,terminal,desktop,browser,personal,containers,virtualization,nvidia,maintenance` |
+| `work-vm` | VM corporativa de desenvolvimento | `base,cleanup,shell,terminal,desktop,browser,toolchains,containers,development,ai,vm-guest,maintenance` |
+| `standalone` | Máquina física para uso pessoal e profissional, sem KVM por padrão | `base,cleanup,shell,terminal,desktop,browser,personal,toolchains,containers,development,ai,nvidia,maintenance` |
+
+Uso recomendado:
+
+```bash
+./install.sh --preset host
+./install.sh --preset work-vm
+./install.sh --preset standalone
+```
+
+Um perfil pode complementar um preset. Por exemplo, para manter KVM no cenário standalone:
+
+```bash
+./install.sh --preset standalone --profile virtualization
 ```
 
 ### Perfis
 
-O padrão executa:
-
-```text
-base,terminal,development,ai,nvidia,desktop,maintenance
-```
-
-Também é possível selecionar perfis:
-
-```bash
-./install.sh --profile base,terminal,development
-./install.sh --profile base,ai
-./install.sh --profile all
-```
-
 | Perfil | Conteúdo |
 |---|---|
-| `base` | atualização, Flathub, remoções, Zsh, SDKMAN, mise e Node LTS |
-| `terminal` | WezTerm nightly e JetBrains Mono |
-| `development` | ferramentas de compilação, Neovim/LazyVim, Maven, Podman Compose, kubectl, IntelliJ e DBeaver |
+| `base` | pré-requisitos, atualização do Fedora e Flathub |
+| `cleanup` | remoção dos aplicativos GNOME e LibreOffice não desejados |
+| `shell` | Zsh, Oh My Zsh, Powerlevel10k e plugins |
+| `terminal` | WezTerm nightly, JetBrains Mono e MesloLGS NF |
+| `desktop` | preferências GNOME e favoritos compatíveis com os perfis selecionados |
+| `browser` | Google Chrome |
+| `personal` | Bitwarden |
+| `toolchains` | SDKMAN, mise e Node LTS; remove Node/npm fornecidos por RPM |
+| `containers` | Podman e Podman Compose |
+| `development` | ferramentas de compilação, Neovim/LazyVim, Maven, kubectl, IntelliJ e DBeaver |
 | `ai` | layout persistente, Claude, Pi, Herdr e pi-web-access; prepara o diretório do Kiro sem instalá-lo |
+| `virtualization` | KVM/QEMU, libvirt, virt-manager, UEFI, TPM virtual e guestfs-tools |
+| `vm-guest` | QEMU Guest Agent e integração de desktop SPICE para a VM |
 | `nvidia` | RPM Fusion e driver NVIDIA, somente quando a GPU é detectada |
-| `desktop` | Chrome, Bitwarden, fontes e preferências GNOME |
-| `maintenance` | timers diários para Fedora e mise, autoremove e retenção de dois kernels |
+| `maintenance` | atualização do Fedora, autoremove e retenção de dois kernels; atualiza mise somente quando instalado |
+| `all` | todos os perfis; destinado a testes ou uso deliberado |
 
-Para uma instalação parcial, recomenda-se incluir `base`, pois ele fornece os pré-requisitos comuns.
+Sem `--preset`, `--profile` seleciona exatamente a lista informada. Recomenda-se incluir `base` em instalações novas.
+
+Os presets são aditivos: instalam e configuram o ambiente selecionado, mas não desinstalam componentes pertencentes a outro preset. Ao migrar uma máquina `standalone` para `host`, a remoção das ferramentas corporativas deve ser feita como uma etapa separada e deliberada.
 
 ## Manutenção automática
 
@@ -70,9 +91,10 @@ fedora-maintenance.timer (sistema/root)
 ├── dnf remove --oldinstallonly --limit=2 -y
 └── dnf autoremove -y
 
-mise-maintenance.timer (usuário)
+mise-maintenance.timer (usuário, somente quando mise está instalado)
 ├── mise self-update -y
-└── mise upgrade -y
+├── mise upgrade -y
+└── mise prune --yes --tools
 ```
 
 O DNF recebe `installonly_limit=2`, mantendo o kernel atual e um fallback. O comando `--oldinstallonly` não remove o kernel em execução; temporariamente podem existir três versões até o próximo boot e a manutenção seguinte.
@@ -98,6 +120,14 @@ Para executar manualmente:
 sudo systemctl start fedora-maintenance.service
 systemctl --user start mise-maintenance.service
 ```
+
+## Containers e virtualização
+
+O perfil `containers` instala Podman e Podman Compose sem apagar imagens, contêineres ou volumes existentes. Ele deve ser selecionado tanto no host pessoal quanto na VM quando houver uso de contêineres.
+
+O perfil `virtualization` é destinado ao host físico. Ele instala o grupo de virtualização do Fedora, `edk2-ovmf`, `swtpm` e `guestfs-tools`, habilita o socket do libvirt e ativa a rede NAT padrão. Ele não cria VMs nem altera discos automaticamente.
+
+O perfil `vm-guest` instala `qemu-guest-agent` e `spice-vdagent` dentro da VM. O canal do QEMU Guest Agent também precisa estar habilitado na configuração da VM no virt-manager.
 
 ## Layout dos agentes de IA
 
@@ -191,7 +221,7 @@ A instalação e autenticação do Kiro são etapas manuais independentes deste 
 
 ## Java e SDKMAN
 
-O instalador não instala, remove, registra ou seleciona nenhuma versão Java. O Maven instalado pelo Fedora pode trazer uma dependência OpenJDK, que permanece sob controle do DNF.
+O perfil `toolchains` instala o SDKMAN, mas não instala, remove, registra ou seleciona nenhuma versão Java. O Maven instalado pelo Fedora pode trazer uma dependência OpenJDK, que permanece sob controle do DNF.
 
 Para adicionar versões por conta própria:
 
@@ -211,7 +241,11 @@ config/
 ├── wezterm/wezterm.lua
 └── zsh/
     ├── p10k.zsh
-    └── zshrc
+    ├── zshrc
+    ├── pre.d/50-ai-agents.zsh
+    └── post.d/
+        ├── 20-toolchains.zsh
+        └── 99-kiro.zsh
 ```
 
 Ao substituir uma configuração gerenciada existente, o instalador cria um backup com timestamp. Configurações e credenciais dos agentes já existentes são preservadas.

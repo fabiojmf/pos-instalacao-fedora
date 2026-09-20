@@ -1,55 +1,7 @@
 #!/usr/bin/env bash
 
 configure_desktop() {
-  install_chrome
-  install_flatpak_apps
-  install_terminal_fonts
   configure_gnome
-}
-
-install_chrome() {
-  if command_exists google-chrome-stable; then
-    log_info "Google Chrome já está instalado."
-    return 0
-  fi
-  log_info "Instalando Google Chrome..."
-  run sudo dnf install -y fedora-workstation-repositories
-  run sudo dnf config-manager setopt google-chrome.enabled=1
-  run sudo dnf install -y google-chrome-stable
-}
-
-install_flatpak_apps() {
-  local app=com.bitwarden.desktop
-  if flatpak list --app --columns=application 2>/dev/null | grep -qx "$app"; then
-    log_info "Bitwarden já está instalado."
-  else
-    run flatpak install -y flathub "$app"
-  fi
-}
-
-install_terminal_fonts() {
-  if fc-list | grep -i 'MesloLGS NF' >/dev/null; then
-    log_info "MesloLGS NF já está instalada."
-    return 0
-  fi
-  log_info "Instalando MesloLGS NF para Powerlevel10k..."
-  local destination=$HOME/.local/share/fonts base=https://github.com/romkatv/powerlevel10k-media/raw/master
-  local files=(
-    'MesloLGS NF Regular.ttf'
-    'MesloLGS NF Bold.ttf'
-    'MesloLGS NF Italic.ttf'
-    'MesloLGS NF Bold Italic.ttf'
-  ) file encoded
-  if (( DRY_RUN )); then
-    log_info "Baixaria as fontes MesloLGS NF em $destination."
-    return 0
-  fi
-  mkdir -p "$destination"
-  for file in "${files[@]}"; do
-    encoded=${file// /%20}
-    curl -fL "$base/$encoded" -o "$destination/$file"
-  done
-  fc-cache -f
 }
 
 configure_gnome() {
@@ -68,6 +20,18 @@ configure_gnome() {
   run gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$path" command wezterm
   run gsettings set "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$path" binding '<Control><Alt>Up'
 
-  local favorites="['org.mozilla.firefox.desktop', 'google-chrome.desktop', 'com.bitwarden.desktop.desktop', 'org.gnome.Nautilus.desktop', 'jetbrains-idea.desktop', 'dbeaver-ce.desktop', 'org.wezfurlong.wezterm.desktop']"
-  run gsettings set org.gnome.shell favorite-apps "$favorites"
+  local -a favorite_ids=(org.mozilla.firefox.desktop)
+  profile_enabled browser && favorite_ids+=(google-chrome.desktop)
+  profile_enabled personal && favorite_ids+=(com.bitwarden.desktop.desktop)
+  favorite_ids+=(org.gnome.Nautilus.desktop)
+  profile_enabled development && favorite_ids+=(jetbrains-idea.desktop dbeaver-ce.desktop)
+  profile_enabled terminal && favorite_ids+=(org.wezfurlong.wezterm.desktop)
+
+  local favorite favorite_list='[' separator=''
+  for favorite in "${favorite_ids[@]}"; do
+    favorite_list+="${separator}'${favorite}'"
+    separator=', '
+  done
+  favorite_list+=']'
+  run gsettings set org.gnome.shell favorite-apps "$favorite_list"
 }

@@ -18,8 +18,9 @@ configure_flathub() {
 remove_unwanted_apps() {
   log_info "Removendo aplicativos GNOME não utilizados e LibreOffice..."
   local candidates=(
-    gnome-contacts gnome-weather gnome-maps gnome-boxes simple-scan totem rhythmbox
+    gnome-contacts gnome-weather gnome-maps gnome-boxes simple-scan totem showtime rhythmbox
     gnome-tour gnome-characters gnome-connections evince loupe gnome-logs gnome-abrt
+    gnome-terminal ptyxis
     gnome-system-monitor gnome-clocks gnome-calendar gnome-camera
   ) installed=() package
 
